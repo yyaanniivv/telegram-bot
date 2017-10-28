@@ -51,7 +51,7 @@ def format_html(html_byte):
     # decode byte to string
     html_str = html_byte.decode()
 
-    # remove all redundant form  (all but the first one) "</form>"
+    # remove all redundant </form> tags. (all but the first one)
     a = html_str.replace("</form>", "</placeholdertag>", 1)
     b = a.replace("</form>", "")
     return b.replace("</placeholdertag>", "</form>", 1)
