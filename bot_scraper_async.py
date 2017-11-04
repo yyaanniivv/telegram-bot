@@ -9,10 +9,11 @@ import urllib3
 from bs4 import BeautifulSoup
 
 # Telegram Bot
+import asyncio
 import telepot
-from telepot.loop import MessageLoop
-from telepot.helper import InlineUserHandler, AnswererMixin
-from telepot.delegate import per_chat_id, per_inline_from_id, create_open, pave_event_space
+from telepot.aio.loop import MessageLoop
+from telepot.aio.helper import InlineUserHandler, AnswererMixin
+from telepot.aio.delegate import per_chat_id, per_inline_from_id, create_open, pave_event_space
 
 # Bot logic
 import string
@@ -24,6 +25,9 @@ import json
 # Output file logic
 import re
 
+#TODO: Extract to two classes, scraper per SEARCH_URL and magnet_object
+# scraper maybe inhert a interface which will have: #get_articles
+# magnet_object will have to_string, to_article, to_json
 def get_magnet_details(table):
     columns = table.find_all('td')
     description_object = {
@@ -77,6 +81,7 @@ def request_magnet_links(search_phrase, limit = 10):
     return magnet_objects
 #TODO: end of classes
 
+
 # Returns [{article},{article},]
 def build_articles(search_phrase):
     articles = []
@@ -93,23 +98,24 @@ def build_articles(search_phrase):
 def create_magnet_articles(query_string):
     return build_articles(query_string)
 
+# Articles:
+# =========
+# call function to return the results:
+#'message_text': char+'msg_text' << should be the btih magnet!!!!
+#'title': the title of the magnet
+# should have a subtitle with: uploaded | size | comments | seeders | leachers | completed
+#article type https://core.telegram.org/bots/api#inline-mode
+def create_a_z_articles(query_string):
+    a_z = string.ascii_lowercase
+    letters = a_z[a_z.index(query_string[0]):]
+    articles = []
 
-def create_torrent(text, date):
-    pattern = re.compile('magnet:\?xt=urn:btih:([^&/]+)')
-    matches = pattern.match(text)
-    if matches:
-        logger.info('matches.groups(1):' + matches.group(1))
+    for char in letters:
+        articles += [{'type': 'article',
+                         'id': char, 'title': char, 'message_text': char+'msg_text'}]
+    return articles
 
-        #TODO: Send name  for file
-        output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-' + str(date) + '.torrent')
-        # output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-'+ matches.group(1) + '.torrent')
-        f1 = open(output_path, 'w+')
-        f1.write('d10:magnet-uri' + str(len(text)) + ':' + text + 'e')
-        f1.close()
-        logger.info('Created file: ' + output_path)
-    else:
-        logger.info('No magnet matched. :-(')
-
+# Will lookup the list of magnets.
 class InlineHandler(InlineUserHandler, AnswererMixin):
     def __init__(self, *args, **kwargs):
         super(InlineHandler, self).__init__(*args, **kwargs)
@@ -134,12 +140,12 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
         print(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
 
 # Accepts magnet -> resuts infile in watch path.
-class DirectMsgHandler(telepot.helper.ChatHandler):
+class DirectMsgHandler(telepot.aio.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
         super(DirectMsgHandler, self).__init__(*args, **kwargs)
         # self._count = 0 #original line
 
-    def on_chat_message(self, msg):
+    async def on_chat_message(self, msg):
         # self._count += 1 #original line
         # await self.sender.sendMessage(self._count) #original line
         sender_id = msg['from']['id']
@@ -156,20 +162,32 @@ class DirectMsgHandler(telepot.helper.ChatHandler):
             if 'magnet' in command: #send msg ok
                 create_torrent(msg['text'], msg['date'])
 
-                #TODO: Does not reply :-(
+                #TODO: Does not reply async :-(
                 # import pdb; pdb.set_trace()
-
-                # self.sender.sendMessage(sender_id, msg['text'])
-                logger.info(str(sender_id) + ' ' + msg['text'])
+                await self.sender.sendMessage(sender_id, msg['text'])
             elif command == 'help':
-                # self.sender.sendMessage(sender_id,"Hello! Send a magnet link you want to save.")
-                logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
+                await self.sender.sendMessage(sender_id,"Hello! Send a magnet link you want to save.")
             else:
-                # self.sender.sendMessage(sender_id, "I don't know this command, try to use `help` command")
-                logger.info(str(sender_id) + ' ' +  "I don't know this command, try to use `help` command")
+                await self.sender.sendMessage(sender_id, "I don't know this command, try to use `help` command")
         else:
             #No reply to user, (401) Unauthorized
             logger.warn('Unknown user sent message')
+
+def create_torrent(text, date):
+    pattern = re.compile('magnet:\?xt=urn:btih:([^&/]+)')
+    matches = pattern.match(text)
+    if matches:
+        logger.info('matches.groups(1):' + matches.group(1))
+
+        #TODO: Send name  for file
+        output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-' + str(date) + '.torrent')
+        # output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-'+ matches.group(1) + '.torrent')
+        f1 = open(output_path, 'w+')
+        f1.write('d10:magnet-uri' + str(len(text)) + ':' + text + 'e')
+        f1.close()
+        logger.info('Created file: ' + output_path)
+    else:
+        logger.info('No magnet matched. :-(')
 
 # __MAIN__
 # Load .env params:
@@ -192,15 +210,16 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-bot = telepot.DelegatorBot(TOKEN, [
+bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
         per_inline_from_id(), create_open, InlineHandler, timeout=10),
     pave_event_space()(
         per_chat_id(), create_open, DirectMsgHandler, timeout=60),
-])
 
-MessageLoop(bot).run_as_thread()
+])
+loop = asyncio.get_event_loop()
+
+loop.create_task(MessageLoop(bot).run_forever())
 print('Listening ...')
 
-while 1:
-    time.sleep(10)
+loop.run_forever()
