@@ -164,11 +164,14 @@ class DirectMsgHandler(telepot.aio.helper.ChatHandler):
 
                 #TODO: Does not reply async :-(
                 # import pdb; pdb.set_trace()
-                await self.sender.sendMessage(sender_id, msg['text'])
+                logger.info(str(sender_id) + ' ' + msg['text'])
+                # await self.sender.sendMessage(sender_id, msg['text'])
             elif command == 'help':
-                await self.sender.sendMessage(sender_id,"Hello! Send a magnet link you want to save.")
+                logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
+                # await self.sender.sendMessage(sender_id,"Hello! Send a magnet link you want to save.")
             else:
-                await self.sender.sendMessage(sender_id, "I don't know this command, try to use `help` command")
+                logger.info(str(sender_id) + ' ' +  "I don't know this command, try to use `help` command")
+                # await self.sender.sendMessage(sender_id, "I don't know this command, try to use `help` command")
         else:
             #No reply to user, (401) Unauthorized
             logger.warn('Unknown user sent message')
