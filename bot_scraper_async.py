@@ -18,16 +18,17 @@ from telepot.aio.delegate import per_chat_id, per_inline_from_id, create_open, p
 # Bot logic
 import string
 import uuid
-import time
 import logging
+import time
 import json
 
 # Output file logic
 import re
 
-#TODO: Extract to two classes, scraper per SEARCH_URL and magnet_object
-# scraper maybe inhert a interface which will have: #get_articles
-# magnet_object will have to_string, to_article, to_json
+
+# TODO: Extract to two classes, scraper per SEARCH_URL and magnet_object
+#  scraper maybe inhert a interface which will have: #get_articles
+#  magnet_object will have to_string, to_article, to_json
 def get_magnet_details(table):
     columns = table.find_all('td')
     description_object = {
@@ -40,11 +41,12 @@ def get_magnet_details(table):
     }
     magnet_object = {
         'title': columns[0].text.strip(),
-        'message_text': columns[0].a.get('href'), # this will be sent back to the bot.
+        'message_text': columns[0].a.get('href'),  # this will be sent back to the bot.
         'description': ' | '.join('{}:{}'.format(key.capitalize(), val) for key, val in description_object.items()),
         # 'url': table.a.get('href'), # Is this needed?
     }
     return magnet_object
+
 
 # Fix broken html
 def format_html(html_byte):
@@ -56,14 +58,15 @@ def format_html(html_byte):
     b = a.replace("</form>", "")
     return b.replace("</placeholdertag>", "</form>", 1)
 
+
 # Returns array of magnet objects
 # returns [{magnet_object}, {magnet_object},]
-def request_magnet_links(search_phrase, limit = 10):
-    search_path = os.environ.get('SEARCH_URL') + search_phrase.replace(' ', '+') # substitue space with '+'
+def request_magnet_links(search_phrase, limit=10):
+    search_path = os.environ.get('SEARCH_URL') + search_phrase.replace(' ', '+')  # substitue space with '+'
     user_agent = {'User-Agent': os.environ.get('USER_AGENT')}
     magnet_objects = []
 
-    http = urllib3.PoolManager(headers = user_agent)
+    http = urllib3.PoolManager(headers=user_agent)
     r1 = http.request('GET', search_path)
 
     if r1.status != 200:
@@ -75,11 +78,11 @@ def request_magnet_links(search_phrase, limit = 10):
         soup = BeautifulSoup(html_str, 'html.parser')
         tables = soup.find_all('table')
 
-        for table in tables[1 : 1 + limit]:
+        for table in tables[1: 1 + limit]:
             magnet_objects += [get_magnet_details(table)]
 
     return magnet_objects
-#TODO: end of classes
+# TODO: end of classes
 
 
 # Returns [{article},{article},]
@@ -87,7 +90,7 @@ def build_articles(search_phrase):
     articles = []
     for magnet in request_magnet_links(search_phrase):
         articles += [{
-            'id': uuid.uuid4().hex, #should be unique. magnet hash should be enough!
+            'id': uuid.uuid4().hex,  # Should be unique. magnet hash should be enough!
             'type': 'article',
             'title': magnet['title'],
             'message_text': magnet['message_text'],
@@ -95,16 +98,17 @@ def build_articles(search_phrase):
         }]
     return articles
 
+
 def create_magnet_articles(query_string):
     return build_articles(query_string)
 
 # Articles:
 # =========
 # call function to return the results:
-#'message_text': char+'msg_text' << should be the btih magnet!!!!
-#'title': the title of the magnet
-# should have a subtitle with: uploaded | size | comments | seeders | leachers | completed
-#article type https://core.telegram.org/bots/api#inline-mode
+# 'message_text': char+'msg_text' << should be the btih magnet!!!!
+# 'title': the title of the magnet
+#  should have a subtitle with: uploaded | size | comments | seeders | leachers | completed
+# article type https://core.telegram.org/bots/api#inline-mode
 def create_a_z_articles(query_string):
     a_z = string.ascii_lowercase
     letters = a_z[a_z.index(query_string[0]):]
@@ -114,6 +118,7 @@ def create_a_z_articles(query_string):
         articles += [{'type': 'article',
                          'id': char, 'title': char, 'message_text': char+'msg_text'}]
     return articles
+
 
 # Will lookup the list of magnets.
 class InlineHandler(InlineUserHandler, AnswererMixin):
@@ -139,6 +144,7 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
         result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result')
         print(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
 
+
 # Accepts magnet -> resuts infile in watch path.
 class DirectMsgHandler(telepot.aio.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
@@ -159,22 +165,22 @@ class DirectMsgHandler(telepot.aio.helper.ChatHandler):
             command = msg['text']
             logger.debug('Command is ' + command)
 
-            if 'magnet' in command: #send msg ok
+            if 'magnet' in command:
                 create_torrent(msg['text'], msg['date'])
-
-                #TODO: Does not reply async :-(
-                # import pdb; pdb.set_trace()
                 logger.info(str(sender_id) + ' ' + msg['text'])
-                # await self.sender.sendMessage(sender_id, msg['text'])
+                await self.sender.sendMessage('Got magnet:' + msg['text'][0:10] + '...')
+
             elif command == 'help':
                 logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
-                # await self.sender.sendMessage(sender_id,"Hello! Send a magnet link you want to save.")
+                await self.sender.sendMessage("Hello! Send a magnet link you want to save.")
+
             else:
-                logger.info(str(sender_id) + ' ' +  "I don't know this command, try to use `help` command")
-                # await self.sender.sendMessage(sender_id, "I don't know this command, try to use `help` command")
+                logger.info(str(sender_id) + ' ' + "I don't know this command, try to use `help` command")
+                await self.sender.sendMessage("I don't know this command, try to use `help` command")
         else:
-            #No reply to user, (401) Unauthorized
+            # No reply to user, (401) Unauthorized
             logger.warn('Unknown user sent message')
+
 
 def create_torrent(text, date):
     pattern = re.compile('magnet:\?xt=urn:btih:([^&/]+)')
@@ -182,7 +188,7 @@ def create_torrent(text, date):
     if matches:
         logger.info('matches.groups(1):' + matches.group(1))
 
-        #TODO: Send name  for file
+        # TODO: Send name  for file
         output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-' + str(date) + '.torrent')
         # output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-'+ matches.group(1) + '.torrent')
         f1 = open(output_path, 'w+')
@@ -191,6 +197,7 @@ def create_torrent(text, date):
         logger.info('Created file: ' + output_path)
     else:
         logger.info('No magnet matched. :-(')
+
 
 # __MAIN__
 # Load .env params:
