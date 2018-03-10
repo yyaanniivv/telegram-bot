@@ -27,6 +27,7 @@ import re
 
 
 # TODO: Extract to two classes, scraper per SEARCH_URL and magnet_object
+
 #  scraper maybe inhert a interface which will have: #get_articles
 #  magnet_object will have to_string, to_article, to_json
 def get_magnet_details(table):
@@ -82,6 +83,8 @@ def request_magnet_links(search_phrase, limit=10):
             magnet_objects += [get_magnet_details(table)]
 
     return magnet_objects
+
+
 # TODO: end of classes
 
 
@@ -102,6 +105,7 @@ def build_articles(search_phrase):
 def create_magnet_articles(query_string):
     return build_articles(query_string)
 
+
 # Articles:
 # =========
 # call function to return the results:
@@ -109,15 +113,17 @@ def create_magnet_articles(query_string):
 # 'title': the title of the magnet
 #  should have a subtitle with: uploaded | size | comments | seeders | leachers | completed
 # article type https://core.telegram.org/bots/api#inline-mode
-def create_a_z_articles(query_string):
-    a_z = string.ascii_lowercase
-    letters = a_z[a_z.index(query_string[0]):]
-    articles = []
 
-    for char in letters:
-        articles += [{'type': 'article',
-                         'id': char, 'title': char, 'message_text': char+'msg_text'}]
-    return articles
+# depricated
+# def create_a_z_articles(query_string):
+#     a_z = string.ascii_lowercase
+#     letters = a_z[a_z.index(query_string[0]):]
+#     articles = []
+#
+#     for char in letters:
+#         articles += [{'type': 'article',
+#                          'id': char, 'title': char, 'message_text': char+'msg_text'}]
+#     return articles
 
 
 # Will lookup the list of magnets.
@@ -168,7 +174,7 @@ class DirectMsgHandler(telepot.aio.helper.ChatHandler):
             if 'magnet' in command:
                 create_torrent(msg['text'], msg['date'])
                 logger.info(str(sender_id) + ' ' + msg['text'])
-                await self.sender.sendMessage('Got magnet:' + msg['text'][0:10] + '...')
+                await self.sender.sendMessage('Got ' + msg['text'][0:40] + '...')
 
             elif command == 'help':
                 logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
