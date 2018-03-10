@@ -1,5 +1,3 @@
-import sys
-
 # Env variables
 from os.path import join, dirname, os
 from dotenv import load_dotenv
@@ -16,11 +14,8 @@ from telepot.aio.helper import InlineUserHandler, AnswererMixin
 from telepot.aio.delegate import per_chat_id, per_inline_from_id, create_open, pave_event_space
 
 # Bot logic
-import string
 import uuid
 import logging
-import time
-import json
 
 # Output file logic
 import re
@@ -63,7 +58,8 @@ def format_html(html_byte):
 # Returns array of magnet objects
 # returns [{magnet_object}, {magnet_object},]
 def request_magnet_links(search_phrase, limit=10):
-    search_path = os.environ.get('SEARCH_URL') + search_phrase.replace(' ', '+')  # substitue space with '+'
+    # substitue space with '+'
+    search_path = os.environ.get('SEARCH_URL') + search_phrase.replace(' ', '+')
     user_agent = {'User-Agent': os.environ.get('USER_AGENT')}
     magnet_objects = []
 
@@ -77,9 +73,10 @@ def request_magnet_links(search_phrase, limit=10):
     else:
         html_str = format_html(r1.data)
         soup = BeautifulSoup(html_str, 'html.parser')
-        tables = soup.find_all('table')
+        profile1_divs = soup.find_all('div', {'id': 'profile1'})
 
-        for table in tables[1: 1 + limit]:
+        for div in profile1_divs[1: 1 + limit]:
+            table = div.find('table')
             magnet_objects += [get_magnet_details(table)]
 
     return magnet_objects
