@@ -14,7 +14,6 @@ from telepot.aio.helper import InlineUserHandler, AnswererMixin
 from telepot.aio.delegate import per_chat_id, per_inline_from_id, create_open, pave_event_space
 
 # Bot logic
-import uuid
 import logging
 
 # Output file logic
@@ -37,7 +36,7 @@ def get_magnet_details(table):
     }
     magnet_object = {
         'title': columns[0].text.strip(),
-        'message_text': columns[0].a.get('href'),  # this will be sent back to the bot.
+        'magnet_link': columns[0].a.get('href'),  # this will be sent back to the bot.
         'description': ' | '.join('{}:{}'.format(key.capitalize(), val) for key, val in description_object.items()),
         # 'url': table.a.get('href'), # Is this needed?
     }
@@ -90,10 +89,10 @@ def build_articles(search_phrase):
     articles = []
     for magnet in request_magnet_links(search_phrase):
         articles += [{
-            'id': uuid.uuid4().hex,  # Should be unique. magnet hash should be enough!
+            'id': magnet['magnet_link'],  # Needs to be unique
             'type': 'article',
             'title': magnet['title'],
-            'message_text': magnet['message_text'],
+            'message_text': magnet['magnet_link'],
             'description': magnet['description']
         }]
     return articles
