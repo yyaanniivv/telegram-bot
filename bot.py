@@ -89,13 +89,19 @@ def build_articles(search_phrase):
     articles = []
     for magnet in request_magnet_links(search_phrase):
         articles += [{
-            'id': magnet['magnet_link'],  # Needs to be unique
+            'id': extract_btih(magnet['magnet_link']),  # Needs to be unique
             'type': 'article',
             'title': magnet['title'],
             'message_text': magnet['magnet_link'],
             'description': magnet['description']
         }]
     return articles
+
+
+def extract_btih(text):
+    pattern = re.compile('magnet:\?xt=urn:btih:([^&/]+)')
+    matches = pattern.match(text)
+    return matches.groups(1)[0]
 
 
 def create_magnet_articles(query_string):
@@ -110,17 +116,6 @@ def create_magnet_articles(query_string):
 #  should have a subtitle with: uploaded | size | comments | seeders | leachers | completed
 # article type https://core.telegram.org/bots/api#inline-mode
 
-# depricated
-# def create_a_z_articles(query_string):
-#     a_z = string.ascii_lowercase
-#     letters = a_z[a_z.index(query_string[0]):]
-#     articles = []
-#
-#     for char in letters:
-#         articles += [{'type': 'article',
-#                          'id': char, 'title': char, 'message_text': char+'msg_text'}]
-#     return articles
-
 
 # Will lookup the list of magnets.
 class InlineHandler(InlineUserHandler, AnswererMixin):
@@ -131,31 +126,22 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
         def compute_answer():
             query_id, from_id, query_string = telepot.glance(msg, flavor='inline_query')
             # print(self.id, ':', 'Inline Query:', query_id, from_id, query_string)
-
             articles = create_magnet_articles(query_string)
-            # articles = create_a_z_articles(query_string)
-            # print(articles)
-
             return articles
 
         self.answerer.answer(msg, compute_answer)
 
     def on_chosen_inline_result(self, msg):
-        from pprint import pprint
-        pprint(msg)
         result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result')
         print(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
 
 
-# Accepts magnet -> resuts infile in watch path.
+# Accepts magnet -> results in file in OUTPUT_DIR path.
 class DirectMsgHandler(telepot.aio.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
         super(DirectMsgHandler, self).__init__(*args, **kwargs)
-        # self._count = 0 #original line
 
     async def on_chat_message(self, msg):
-        # self._count += 1 #original line
-        # await self.sender.sendMessage(self._count) #original line
         sender_id = msg['from']['id']
         logger.debug('sender_id: ' + str(sender_id))
         logger.info("Incoming message:")
@@ -185,20 +171,17 @@ class DirectMsgHandler(telepot.aio.helper.ChatHandler):
 
 
 def create_torrent(text, date):
-    pattern = re.compile('magnet:\?xt=urn:btih:([^&/]+)')
-    matches = pattern.match(text)
-    if matches:
-        logger.info('matches.groups(1):' + matches.group(1))
-
-        # TODO: Send name  for file
+    torrent_file_hash = extract_btih(text)  # This isn't needed, just a sanity to verify input.
+    if torrent_file_hash:
         output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-' + str(date) + '.torrent')
-        # output_path = os.path.join(os.environ.get('OUTPUT_DIR'), 'meta-'+ matches.group(1) + '.torrent')
         f1 = open(output_path, 'w+')
         f1.write('d10:magnet-uri' + str(len(text)) + ':' + text + 'e')
         f1.close()
         logger.info('Created file: ' + output_path)
+        # return success msg
     else:
         logger.info('No magnet matched. :-(')
+        # return error msg
 
 
 # __MAIN__
@@ -216,7 +199,10 @@ logger = logging.getLogger("TelegramBot")
 logger_file_path = os.environ.get('LOG_PATH')
 
 handler = logging.FileHandler(logger_file_path)
-handler.setLevel(logging.INFO)
+
+# Set logger to higher level for production
+if(os.environ.get('LOG_LEVEL_WARNING')):
+    handler.setLevel(logging.WARNING)
 
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
