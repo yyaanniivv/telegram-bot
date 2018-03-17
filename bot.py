@@ -12,6 +12,7 @@ import telepot
 from telepot.aio.loop import MessageLoop
 from telepot.aio.helper import InlineUserHandler, AnswererMixin
 from telepot.aio.delegate import per_chat_id, per_inline_from_id, create_open, pave_event_space
+from telepot.namedtuple import ReplyKeyboardMarkup, KeyboardButton
 
 # Bot logic
 import logging
@@ -133,7 +134,7 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
 
     def on_chosen_inline_result(self, msg):
         result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result')
-        print(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
+        logger.debug(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
 
 
 # Accepts magnet -> results in file in OUTPUT_DIR path.
@@ -143,28 +144,49 @@ class DirectMsgHandler(telepot.aio.helper.ChatHandler):
 
     async def on_chat_message(self, msg):
         sender_id = msg['from']['id']
+        chat_id = msg['chat']['id']
         logger.debug('sender_id: ' + str(sender_id))
         logger.info("Incoming message:")
         logger.info(msg)
-
+ # await bot.sendMessage(chat_id, 'Hide custom keyboard', reply_markup=ReplyKeyboardRemove())
         if str(sender_id) in approved_ids:
             logger.debug('Known user sent a message.')
 
-            command = msg['text']
-            logger.debug('Command is ' + command)
+            msg_text = msg['text']
+            logger.debug('Command is ' + msg_text)
 
-            if 'magnet' in command:
+            if 'magnet' in msg_text:
                 create_torrent(msg['text'], msg['date'])
-                logger.info(str(sender_id) + ' ' + msg['text'])
+                logger.info(str(sender_id) + ' requested magnet.')
                 await self.sender.sendMessage('Got ' + msg['text'][0:40] + '...')
 
-            elif command == 'help':
-                logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
+            elif msg_text == 'help':
+                logger.info(str(sender_id) + ' requested help.')
                 await self.sender.sendMessage("Hello! Send a magnet link you want to save.")
 
+            elif msg_text == '/help':
+                await self.sender.sendMessage(
+                    "Send a magnet link you want to save, or search via @bot_name or /search."
+                    )
+
+            elif msg_text.startswith('/search'):
+                # fetch the search term search = msg_text[8:]. gsub '+'
+                logger.debug("HERE")
+                await bot.sendMessage(
+                                chat_id,
+                                'testing custom keyboard',
+                                reply_markup=ReplyKeyboardMarkup(
+                                    keyboard=[
+                                        [KeyboardButton(text="Yes"), KeyboardButton(text="No")]
+                                    ],
+                                    one_time_keyboard=True
+                                )
+                            )
+                # await self.sender.sendMessage("Search test (!)")
+
             else:
-                logger.info(str(sender_id) + ' ' + "I don't know this command, try to use `help` command")
-                await self.sender.sendMessage("I don't know this command, try to use `help` command")
+                logger.warning(str(sender_id) + ' sent an unknown msg:' + msg['text'])
+                await self.sender.sendMessage("nope?, try to use `help`")
         else:
             # No reply to user, (401) Unauthorized
             logger.warn('Unknown user sent message')
