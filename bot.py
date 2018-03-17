@@ -201,8 +201,14 @@ logger_file_path = os.environ.get('LOG_PATH')
 handler = logging.FileHandler(logger_file_path)
 
 # Set logger to higher level for production
-if(os.environ.get('LOG_LEVEL_WARNING')):
+logging_level = os.environ.get('LOG_LEVEL')
+if(logging_level == 'warning'):
     handler.setLevel(logging.WARNING)
+elif(logging_level == 'debug'):
+    handler.setLevel(logging.DEBUG)
+elif(logging_level == 'info'):
+    handler.setLevel(logging.INFO)
+
 
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
