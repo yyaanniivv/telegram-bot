@@ -19,7 +19,7 @@ import logging
 # Output file logic
 import re
 
-from lib import Bot
+from src.bot import Bot
 
 # __MAIN__
 # Load .env params:
