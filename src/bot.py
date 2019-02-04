@@ -21,7 +21,14 @@ import re
 
 from .scraper import Scraper
 
+
 class Bot:
+    def __init__(self):
+        # Setup Bot:
+        TOKEN = os.environ.get('TELEGRAM_TOKEN')
+        approved_ids = os.environ.get('APPROVED_IDS').split(',')
+        print('start bot')
+
     # Returns [{article},{article},]
     def build_articles(search_phrase):
         articles = []
@@ -119,10 +126,6 @@ class Bot:
             # return success msg
         else:
             logger.info('No magnet matched. :-(')
-
-
-    def __init__(self):
-        logger('bot init')
 
     def start():
         bot = telepot.aio.DelegatorBot(TOKEN, [

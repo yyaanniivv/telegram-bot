@@ -26,10 +26,6 @@ from src.bot import Bot
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
-# Setup Bot:
-TOKEN = os.environ.get('TELEGRAM_TOKEN')
-approved_ids = os.environ.get('APPROVED_IDS').split(',')
-
 # Logger setup:
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("TelegramBot")
