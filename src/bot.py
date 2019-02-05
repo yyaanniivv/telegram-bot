@@ -80,7 +80,6 @@ TELEGRAM_LOGGER = "TelegramBot"
 class Bot(InlineUserHandler, AnswererMixin):
     # Setup Bot:
     TOKEN = os.environ.get('TELEGRAM_TOKEN')
-    approved_ids = os.environ.get('APPROVED_IDS').split(',')
     logger = logging.getLogger(TELEGRAM_LOGGER)
 
     def __init__(self, *args, **kwargs):
@@ -135,9 +134,11 @@ class Bot(InlineUserHandler, AnswererMixin):
     def on_inline_query(self, msg):
         def compute_answer():
             query_id, from_id, query_string = telepot.glance(msg, flavor='inline_query')
-            # print(self.id, ':', 'Inline Query:', query_id, from_id, query_string)
-            articles = Bot.create_magnet_articles(query_string)
-            return articles
+
+            print(self.id, ':', 'Inline Query:', query_id, from_id, query_string)
+            if str(from_id) in os.environ.get('APPROVED_IDS').split(','):
+                articles = Bot.create_magnet_articles(query_string)
+                return articles
 
         self.answerer.answer(msg, compute_answer)
 
