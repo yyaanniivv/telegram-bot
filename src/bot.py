@@ -22,11 +22,63 @@ import re
 from .scraper import Scraper
 
 
+# Will lookup the list of magnets.
+class InlineHandler(InlineUserHandler, AnswererMixin):
+    def __init__(self, *args, **kwargs):
+        super(InlineHandler, self).__init__(*args, **kwargs)
+
+    def on_inline_query(self, msg):
+        def compute_answer():
+            query_id, from_id, query_string = telepot.glance(msg, flavor='inline_query')
+            # print(self.id, ':', 'Inline Query:', query_id, from_id, query_string)
+            articles = create_magnet_articles(query_string)
+            return articles
+
+        self.answerer.answer(msg, compute_answer)
+
+    def on_chosen_inline_result(self, msg):
+        result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result')
+        print(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
+
+
+# Accepts magnet -> results in file in OUTPUT_DIR path.
+class DirectMsgHandler(telepot.aio.helper.ChatHandler):
+    def __init__(self, *args, **kwargs):
+        super(DirectMsgHandler, self).__init__(*args, **kwargs)
+
+    async def on_chat_message(self, msg):
+        sender_id = msg['from']['id']
+        logger.debug('sender_id: ' + str(sender_id))
+        logger.info("Incoming message:")
+        logger.info(msg)
+
+        if str(sender_id) in self.approved_ids:
+            logger.debug('Known user sent a message.')
+
+            command = msg['text']
+            logger.debug('Command is ' + command)
+
+            if 'magnet' in command:
+                create_torrent(msg['text'], msg['date'])
+                logger.info(str(sender_id) + ' ' + msg['text'])
+                await self.sender.sendMessage('Got ' + msg['text'][0:40] + '...')
+
+            elif command == 'help':
+                logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
+                await self.sender.sendMessage("Hello! Send a magnet link you want to save.")
+
+            else:
+                logger.info(str(sender_id) + ' ' + "I don't know this command, try to use `help` command")
+                await self.sender.sendMessage("I don't know this command, try to use `help` command")
+        else:
+            # No reply to user, (401) Unauthorized
+            logger.warn('Unknown user sent message')
+
 class Bot:
     def __init__(self):
         # Setup Bot:
-        TOKEN = os.environ.get('TELEGRAM_TOKEN')
-        approved_ids = os.environ.get('APPROVED_IDS').split(',')
+        self.TOKEN = os.environ.get('TELEGRAM_TOKEN')
+        self.approved_ids = os.environ.get('APPROVED_IDS').split(',')
         print('start bot')
 
     # Returns [{article},{article},]
@@ -61,60 +113,6 @@ class Bot:
     #  should have a subtitle with: uploaded | size | comments | seeders | leachers | completed
     # article type https://core.telegram.org/bots/api#inline-mode
 
-
-    # Will lookup the list of magnets.
-    class InlineHandler(InlineUserHandler, AnswererMixin):
-        def __init__(self, *args, **kwargs):
-            super(InlineHandler, self).__init__(*args, **kwargs)
-
-        def on_inline_query(self, msg):
-            def compute_answer():
-                query_id, from_id, query_string = telepot.glance(msg, flavor='inline_query')
-                # print(self.id, ':', 'Inline Query:', query_id, from_id, query_string)
-                articles = create_magnet_articles(query_string)
-                return articles
-
-            self.answerer.answer(msg, compute_answer)
-
-        def on_chosen_inline_result(self, msg):
-            result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result')
-            print(self.id, ':', 'Chosen Inline Result:', result_id, from_id, query_string)
-
-
-    # Accepts magnet -> results in file in OUTPUT_DIR path.
-    class DirectMsgHandler(telepot.aio.helper.ChatHandler):
-        def __init__(self, *args, **kwargs):
-            super(DirectMsgHandler, self).__init__(*args, **kwargs)
-
-        async def on_chat_message(self, msg):
-            sender_id = msg['from']['id']
-            logger.debug('sender_id: ' + str(sender_id))
-            logger.info("Incoming message:")
-            logger.info(msg)
-
-            if str(sender_id) in approved_ids:
-                logger.debug('Known user sent a message.')
-
-                command = msg['text']
-                logger.debug('Command is ' + command)
-
-                if 'magnet' in command:
-                    create_torrent(msg['text'], msg['date'])
-                    logger.info(str(sender_id) + ' ' + msg['text'])
-                    await self.sender.sendMessage('Got ' + msg['text'][0:40] + '...')
-
-                elif command == 'help':
-                    logger.info(str(sender_id) + ' ' + "Hello! Send a magnet link you want to save.")
-                    await self.sender.sendMessage("Hello! Send a magnet link you want to save.")
-
-                else:
-                    logger.info(str(sender_id) + ' ' + "I don't know this command, try to use `help` command")
-                    await self.sender.sendMessage("I don't know this command, try to use `help` command")
-            else:
-                # No reply to user, (401) Unauthorized
-                logger.warn('Unknown user sent message')
-
-
     def create_torrent(text, date):
         torrent_file_hash = extract_btih(text)  # This isn't needed, just a sanity to verify input.
         if torrent_file_hash:
@@ -127,8 +125,8 @@ class Bot:
         else:
             logger.info('No magnet matched. :-(')
 
-    def start():
-        bot = telepot.aio.DelegatorBot(TOKEN, [
+    def start(self):
+        bot = telepot.aio.DelegatorBot(self.TOKEN, [
             pave_event_space()(
                 per_inline_from_id(), create_open, InlineHandler, timeout=10),
             pave_event_space()(
