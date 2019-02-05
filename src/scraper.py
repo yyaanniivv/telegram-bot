@@ -1,3 +1,8 @@
+# Bot logic
+import logging
+TELEGRAM_LOGGER = "TelegramBot"
+
+
 class Scraper:
     #  scraper maybe inhert a interface which will have: #get_articles
     #  magnet_object will have to_string, to_article, to_json
