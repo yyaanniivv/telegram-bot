@@ -1,11 +1,13 @@
 # Bot logic
 import logging
 TELEGRAM_LOGGER = "TelegramBot"
+logger = logging.getLogger("TelegramBot")
 
 
 class Scraper:
     #  scraper maybe inhert a interface which will have: #get_articles
     #  magnet_object will have to_string, to_article, to_json
+    @staticmethod
     def get_magnet_details(row):
         uploaded_n_size = row.find('font', {'class': 'detDesc'}).text.replace(u'\xa0', ' ').split(',').pop()
         seed_n_leech = row.find_all('td', {'align': 'right'})
@@ -16,10 +18,13 @@ class Scraper:
             'seeders ^': seed_n_leech[0].text.strip(),
             'leachers v': seed_n_leech[1].text.strip(),
         }
+
+        description_string = ' | '.join('{}:{}'
+                                  .format(key.capitalize(), val) for key, val in description_object.items())
         magnet_object = {
             'title': row.find('div', {'class': 'detName'}).text.strip(),
-            'magnet_link': row.find('a', {'title':'Download this torrent using magnet'}).get('href'),  # this will be sent back to the bot.
-            'description': ' | '.join('{}:{}'.format(key.capitalize(), val) for key, val in description_object.items()),
+            'magnet_link': row.find('a', {'title': 'Download this torrent using magnet'}).get('href'),  # this will be sent back to the bot.
+            'description': description_string,
         }
         return magnet_object
 
@@ -49,6 +54,6 @@ class Scraper:
             result_table = soup.find_all('table', {'id': 'searchResult'})[0]
             number_of_results = len(result_table)
             if number_of_results > 1:
-                for row in result_table[1: number_of_results - 1]: # consider using LIMIT
-                    magnet_objects += [get_magnet_details(row)]
+                for row in result_table[1: number_of_results - 1]:  # consider using LIMIT
+                    magnet_objects += [Scraper.get_magnet_details(row)]
             return magnet_objects
