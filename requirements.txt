@@ -11,6 +11,7 @@ mccabe==0.6.1
 pycodestyle==2.6.0
 pycparser==2.20
 pylint==2.6.0
+python-dotenv==0.15.0
 python-telegram-bot==13.0
 pytz==2020.4
 six==1.15.0
