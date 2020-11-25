@@ -7,7 +7,7 @@ from telegram import (InlineQueryResultArticle, InputTextMessageContent,
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           InlineQueryHandler, MessageHandler, Updater)
 
-from search import TpbAdaptor
+from tpb_adaptor import TpbAdaptor
 
 # __MAIN__
 # Load .env params:
