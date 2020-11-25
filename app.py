@@ -2,7 +2,8 @@ import logging
 from os.path import dirname, join, os
 
 from dotenv import load_dotenv
-from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
+from telegram import (InlineQueryResultArticle, InputTextMessageContent,
+                      ParseMode, Update)
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           InlineQueryHandler, MessageHandler, Updater)
 
@@ -36,9 +37,23 @@ tpbAdaptor = TpbAdaptor(logger)
 # Setup commands
 
 
+def start(update: Update, context: CallbackContext) -> None:
+    return
+
+
+def help(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(
+        '''Hi there!
+@living_room_bot <search phrase> - inline,
+/start <magnet>,
+/help to view this message.
+        ''',)
+
+
 def inline_lookup(update: Update, context: CallbackContext) -> None:
+    # TODO: test approved_user_filter(update.message) to filter out other users.
     results = tpbAdaptor.request_magnet_links(
-        update.inline_query.query, os.environ.get('LIMIT'))
+        update.inline_query.query, int(os.environ.get('LIMIT')))
     articles = list()
     for magnet in results:
         articles.append(
@@ -46,14 +61,13 @@ def inline_lookup(update: Update, context: CallbackContext) -> None:
                 id=magnet['id'],
                 title=magnet['title'],
                 input_message_content=InputTextMessageContent(
-                    magnet['magnet_link']),
+                    magnet['command_msg']),
                 description=magnet['description'],
             )
         )
     context.bot.answer_inline_query(update.inline_query.id, articles)
 
 
-# TODO: Accept magnet, and click/selection of a result
 def echo(update: Update, context: CallbackContext):
     update.message.reply_text(f'Echo: {update.message.text}')
     # context.bot.send_message(
@@ -61,13 +75,15 @@ def echo(update: Update, context: CallbackContext):
 
 
 inline_handler = InlineQueryHandler(inline_lookup)
-# search_handler = CommandHandler('search', search, approved_user_filter)
+# start_handler = CommandHandler('start', start, approved_user_filter)
+help_handler = CommandHandler('help', help)
 echo_handler = MessageHandler(
     approved_user_filter &
     Filters.text & (~Filters.command), echo)
 
 updater.dispatcher.add_handler(echo_handler)
-# updater.dispatcher.add_handler(search_handler)
+# updater.dispatcher.add_handler(start_handler)
+updater.dispatcher.add_handler(help_handler)
 updater.dispatcher.add_handler(inline_handler)
 
 
