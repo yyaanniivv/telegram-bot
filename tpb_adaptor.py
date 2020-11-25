@@ -14,11 +14,7 @@ load_dotenv(dotenv_path)
 #  TODO: magnet_object will have to_string, to_article, to_json
 
 
-def create_magnet_link(info_hash):
-    return os.environ.get('MAGNET_PREFIX') + info_hash + os.environ.get('MAGNET_SUFFIX')
-
-
-def get_magnet_details(entry):
+def get_magnet_details(entry: object, search_phrase: str):
     date = time.strftime('%Y-%m-%d', time.localtime(int(entry['added'])))
     size = str(round(int(entry["size"]) / 1024**2, 2)) + 'Mib'  # Size in MiB
     description_object = {
@@ -27,10 +23,11 @@ def get_magnet_details(entry):
         'seeders ^': entry['seeders'],
         'leachers v': entry['leechers'],
     }
-    magnet_object = {
+
+    magnet_object = {  # btih_article
         'id': entry['info_hash'],
         'title': entry['name'],
-        'command_msg': f"/start {create_magnet_link(entry['info_hash'])}",
+        'command_msg': f"/start {entry['info_hash']} {search_phrase}",
         'description': ' | '.join('{}:{}'.format(key.capitalize(), val) for key, val in description_object.items()),
     }
     return magnet_object
@@ -40,16 +37,13 @@ class TpbAdaptor:
     def __init__(self, logger):
         self.logger = logger
 
-    def search(self, term):
-        print(term)
+    def fetch_magnet_links(self, phrases: list[str], limit: int = 10):
+        """ Returns array of [{btih_article}, {btih_article},] """
 
-    def request_magnet_links(self, search_phrase: list[str], limit: int = 10):
-        # Returns array of magnet objects
-        # returns [{magnet_object}, {magnet_object},]
-
+        search_phrase = phrases.replace(' ', '+')
+        self.logger.debug(f'Looking up: {search_phrase}')
         magnet_objects = []
-        search_path = os.environ.get('SEARCH_URL') + \
-            search_phrase.replace(' ', '+')
+        search_path = f'{os.environ.get("SEARCH_URL")}{search_phrase}'
 
         user_agent = {'User-Agent': os.environ.get('USER_AGENT')}
         http = urllib3.PoolManager(headers=user_agent)
@@ -70,7 +64,7 @@ class TpbAdaptor:
             parsed_result = json.loads(r1.data.decode())
 
             for entry in parsed_result[1: 1 + limit]:
-                magnet_objects += [get_magnet_details(entry)]
+                magnet_objects += [get_magnet_details(entry, search_phrase)]
 
         return magnet_objects
 

@@ -46,17 +46,18 @@ def start(update: Update, context: CallbackContext) -> None:
 
 
 def help(update: Update, context: CallbackContext) -> None:
+    """/help returns the general usage of the bot"""
     update.message.reply_text(
         '''Hi there!
-@living_room_bot <search phrase> - inline,
-/start <magnet>,
-/help to view this message.
-        ''',)
+@living_room_bot search_phrase - inline search,
+/start - brih|magnet [<name>],
+/help - to view this message.''')
 
 
 def inline_lookup(update: Update, context: CallbackContext) -> None:
+    """@bot inline search """
     logger.info(f'Inline: {update.inline_query.query}')
-    results = tpbAdaptor.request_magnet_links(
+    results = tpbAdaptor.fetch_magnet_links(
         update.inline_query.query, int(os.environ.get('LIMIT')))
     articles = list()
     for magnet in results:
@@ -73,10 +74,9 @@ def inline_lookup(update: Update, context: CallbackContext) -> None:
 
 
 def echo(update: Update, context: CallbackContext):
+    """Echo the message back to the user"""
     logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
     update.message.reply_text(f'Echo: {update.message.text}')
-    # context.bot.send_message(
-    #     chat_id=update.effective_chat.id, text=update.message.text)
 
 
 inline_handler = InlineQueryHandler(inline_lookup)
