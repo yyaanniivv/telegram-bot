@@ -7,6 +7,7 @@ from telegram import (InlineQueryResultArticle, InputTextMessageContent,
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           InlineQueryHandler, MessageHandler, Updater)
 
+from torrent_file import TorrentFile
 from tpb_adaptor import TpbAdaptor
 
 # __MAIN__
@@ -34,11 +35,14 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 tpbAdaptor = TpbAdaptor(logger)
 
-# Setup commands
-
 
 def start(update: Update, context: CallbackContext) -> None:
-    return
+    """/start create torrent file from btih or magnet link"""
+    if len(context.args) == 1:
+        context.args.append('NoSearch')
+    output_path = TorrentFile(context.args, logger).create()
+    reply = 'Failed to create file' if output_path == '' else f'File created successfully, {output_path}'
+    update.message.reply_text(reply)
 
 
 def help(update: Update, context: CallbackContext) -> None:
@@ -76,14 +80,14 @@ def echo(update: Update, context: CallbackContext):
 
 
 inline_handler = InlineQueryHandler(inline_lookup)
-# start_handler = CommandHandler('start', start, approved_user_filter)
+start_handler = CommandHandler('start', start, approved_user_filter)
 help_handler = CommandHandler('help', help)
 echo_handler = MessageHandler(
     approved_user_filter &
     Filters.text & (~Filters.command), echo)
 
 updater.dispatcher.add_handler(echo_handler)
-# updater.dispatcher.add_handler(start_handler)
+updater.dispatcher.add_handler(start_handler)
 updater.dispatcher.add_handler(help_handler)
 updater.dispatcher.add_handler(inline_handler)
 
