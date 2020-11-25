@@ -26,7 +26,7 @@ logging.basicConfig(level=logging_level)  # Affects the bot library
 logger = logging.getLogger("TelegramBot")
 logger_file_path = os.environ.get('LOG_PATH')
 handler = logging.FileHandler(logger_file_path)
-handler.setLevel('DEBUG')
+handler.setLevel(logging_level)
 
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -51,7 +51,7 @@ def help(update: Update, context: CallbackContext) -> None:
 
 
 def inline_lookup(update: Update, context: CallbackContext) -> None:
-    # TODO: test approved_user_filter(update.message) to filter out other users.
+    logger.info(f'Inline: {update.inline_query.query}')
     results = tpbAdaptor.request_magnet_links(
         update.inline_query.query, int(os.environ.get('LIMIT')))
     articles = list()
@@ -69,6 +69,7 @@ def inline_lookup(update: Update, context: CallbackContext) -> None:
 
 
 def echo(update: Update, context: CallbackContext):
+    logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
     update.message.reply_text(f'Echo: {update.message.text}')
     # context.bot.send_message(
     #     chat_id=update.effective_chat.id, text=update.message.text)
