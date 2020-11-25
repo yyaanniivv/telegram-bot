@@ -1,13 +1,12 @@
 import logging
 from os.path import dirname, join, os
-from search import Scraper, fibo  # Remove fibo
 
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
-                          MessageHandler, Updater)
+                          InlineQueryHandler, MessageHandler, Updater)
 
-import random  # Remove with fibo
+from search import TpbAdaptor
 
 # __MAIN__
 # Load .env params:
@@ -32,16 +31,26 @@ formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-scraper = Scraper(logger)
+tpbAdaptor = TpbAdaptor(logger)
 
 # Setup commands
 
 
-def search(update: Update, context: CallbackContext) -> None:
-    # a = fibo(random.randint(11, 20))
-    res = scraper.request_magnet_links(context.args)
-    print("******", res)
-    update.message.reply_text(f'Lookup {context.args}')
+def inline_lookup(update: Update, context: CallbackContext) -> None:
+    results = tpbAdaptor.request_magnet_links(
+        update.inline_query.query, os.environ.get('LIMIT'))
+    articles = list()
+    for magnet in results:
+        articles.append(
+            InlineQueryResultArticle(
+                id=magnet['id'],
+                title=magnet['title'],
+                input_message_content=InputTextMessageContent(
+                    magnet['magnet_link']),
+                description=magnet['description'],
+            )
+        )
+    context.bot.answer_inline_query(update.inline_query.id, articles)
 
 
 # TODO: Accept magnet, and click/selection of a result
@@ -51,13 +60,16 @@ def echo(update: Update, context: CallbackContext):
     #     chat_id=update.effective_chat.id, text=update.message.text)
 
 
-search_handler = CommandHandler('search', search, approved_user_filter)
+inline_handler = InlineQueryHandler(inline_lookup)
+# search_handler = CommandHandler('search', search, approved_user_filter)
 echo_handler = MessageHandler(
     approved_user_filter &
     Filters.text & (~Filters.command), echo)
 
 updater.dispatcher.add_handler(echo_handler)
-updater.dispatcher.add_handler(search_handler)
+# updater.dispatcher.add_handler(search_handler)
+updater.dispatcher.add_handler(inline_handler)
+
 
 # Start bot
 print("Bot up and listening!")
