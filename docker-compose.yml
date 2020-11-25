@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  backend:
+    environment:
+      - PYTHONUNBUFFERED=1
+    image: telegram_bot:latest #<LOCALIMAGE>
+    tty: true # docker run -t
+    stdin_open: true # docker run -i
+    #cmd: with hotreloading/monitor for dev
+    volumes:
+      - ./:/app
