@@ -1,6 +1,8 @@
 APScheduler==3.6.3
 astroid==2.4.2
 autopep8==1.5.4
+beautifulsoup4==4.9.3
+bs4==0.0.1
 certifi==2020.11.8
 cffi==1.14.3
 cryptography==3.2.1
@@ -15,7 +17,9 @@ python-dotenv==0.15.0
 python-telegram-bot==13.0
 pytz==2020.4
 six==1.15.0
+soupsieve==2.0.1
 toml==0.10.2
 tornado==6.1
 tzlocal==2.1
+urllib3==1.26.2
 wrapt==1.12.1

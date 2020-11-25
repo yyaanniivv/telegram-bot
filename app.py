@@ -1,10 +1,13 @@
 import logging
 from os.path import dirname, join, os
+from search import Scraper, fibo  # Remove fibo
 
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import (CallbackContext, CommandHandler, MessageHandler,
-                          Updater, Filters)
+from telegram.ext import (CallbackContext, CommandHandler, Filters,
+                          MessageHandler, Updater)
+
+import random  # Remove with fibo
 
 # __MAIN__
 # Load .env params:
@@ -29,14 +32,19 @@ formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+scraper = Scraper(logger)
 
 # Setup commands
 
 
 def search(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(f'Lookup {update.effective_user.first_name}')
+    # a = fibo(random.randint(11, 20))
+    res = scraper.request_magnet_links(context.args)
+    print("******", res)
+    update.message.reply_text(f'Lookup {context.args}')
 
 
+# TODO: Accept magnet, and click/selection of a result
 def echo(update: Update, context: CallbackContext):
     update.message.reply_text(f'Echo: {update.message.text}')
     # context.bot.send_message(
