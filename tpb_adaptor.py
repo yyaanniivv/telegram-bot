@@ -57,10 +57,10 @@ class TpbAdaptor:
             self.logger.debug(r1.data.decode())
         else:
             # For Debug purposes #2
-            tmp_path = "./tmp/response_body"
-            tmp_file = open(tmp_path, 'wb')
-            tmp_file.write(r1.data)
-            tmp_file.close()
+            # tmp_path = "./tmp/response_body"
+            # tmp_file = open(tmp_path, 'wb')
+            # tmp_file.write(r1.data)
+            # tmp_file.close()
             parsed_result = json.loads(r1.data.decode())
 
             for entry in parsed_result[1: 1 + limit]:
@@ -69,11 +69,11 @@ class TpbAdaptor:
         return magnet_objects
 
 
-class MockR:
-    # For Debug purposes #3
-    def __init__(self):
-        tmp_path = "./tmp/response_body"
-        tmp_file = open(tmp_path, 'rb')
-        self.data = tmp_file.read()
-        tmp_file.close()
-        self.status = 200
+# class MockR:
+#     # For Debug purposes #3
+#     def __init__(self):
+#         tmp_path = "./tmp/response_body"
+#         tmp_file = open(tmp_path, 'rb')
+#         self.data = tmp_file.read()
+#         tmp_file.close()
+#         self.status = 200
