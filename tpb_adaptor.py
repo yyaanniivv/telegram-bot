@@ -1,12 +1,10 @@
-from dotenv import load_dotenv
-from os.path import dirname, join, os
-import time
-
-# TpbAdator
-import urllib3
 import json
+import time
+from os.path import dirname, join, os
 
-# Load .env params:
+import urllib3
+from dotenv import load_dotenv
+
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
@@ -47,9 +45,10 @@ class TpbAdaptor:
 
         user_agent = {'User-Agent': os.environ.get('USER_AGENT')}
         http = urllib3.PoolManager(headers=user_agent)
-        # r1 = http.request('GET', search_path)
+        r1 = http.request('GET', search_path)
 
-        r1 = MockR()
+        # For Debug purposes #1
+        # r1 = MockR()
 
         if r1.status != 200:
             self.logger.debug(search_path)
@@ -57,10 +56,11 @@ class TpbAdaptor:
             # self.logger.debug(r1.data)
             self.logger.debug(r1.data.decode())
         else:
-            # tmp_path = "./tmp_response_body"
-            # tmp_file = open(tmp_path, 'wb+')
-            # tmp_file.write(r1.data)
-            # tmp_file.close()
+            # For Debug purposes #2
+            tmp_path = "./tmp/response_body"
+            tmp_file = open(tmp_path, 'wb')
+            tmp_file.write(r1.data)
+            tmp_file.close()
             parsed_result = json.loads(r1.data.decode())
 
             for entry in parsed_result[1: 1 + limit]:
@@ -70,8 +70,9 @@ class TpbAdaptor:
 
 
 class MockR:
+    # For Debug purposes #3
     def __init__(self):
-        tmp_path = "./tmp_response_body"
+        tmp_path = "./tmp/response_body"
         tmp_file = open(tmp_path, 'rb')
         self.data = tmp_file.read()
         tmp_file.close()
