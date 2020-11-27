@@ -3,7 +3,7 @@ services:
   backend:
     environment:
       - PYTHONUNBUFFERED=1
-    image: telegram_bot:latest #<LOCALIMAGE>
+    image: yyaanniivv/telegram-bot:latest
     tty: true # docker run -t
     stdin_open: true # docker run -i
     #cmd: with hotreloading/monitor for dev
