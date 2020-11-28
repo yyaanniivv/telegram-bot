@@ -2,7 +2,7 @@
 .*
 bot.log
 docker-compose.yml
-/tmp/*
-!/tmp/
+/tmp
+!/tmp/.gitkeep
 /__pycache__
 /output
