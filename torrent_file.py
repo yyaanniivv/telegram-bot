@@ -2,8 +2,6 @@ import os
 import re
 import time
 
-# Torrent file creator
-
 
 def extract_btih(text):
     pattern = re.compile('magnet:\\?xt=urn:btih:([^&/]+)')
@@ -12,23 +10,27 @@ def extract_btih(text):
 
 
 class TorrentFile:
+    """ Accepts a magnet link and outputs a torrent file."""
+
     def __init__(self, start_args: list[str], logger):
         self.logger = logger
-        self.info_hash = start_args[0]
+        self.magnet = start_args[0]
         self.search_term = ''.join(start_args[1:])
 
     def create(self):
-        btih = self.info_hash if len(
-            self.info_hash) == 40 else extract_btih(self.info_hash)
+        btih = extract_btih(self.magnet)
         date = str(round(time.time()))
-        if btih:
+        # Naively assert that the btif is valid.
+        if len(btih) == 40:
             file_name = f'bot-{date}-{self.search_term}.torrent'
             output_path = os.path.join(os.environ.get('OUTPUT_DIR'),
                                        file_name)
             torrent_file = open(output_path, 'w+')
             # TODO: test and remove this
-            # torrent_file.write('d10:magnet-uri' + str(len(btih)) + ':' + btih + 'e')
-            torrent_file.write(f'd10:magnet-uri{str(len(btih))}:{btih}e')
+            # torrent_file.write('d10:magnet-uri' +
+            #                    str(len(self.magnet)) + ':' + self.magnet + 'e')
+            torrent_file.write(
+                f'd10:magnet-uri{str(len(self.magnet))}:{self.magnet}e')
             torrent_file.close()
             os.chown(output_path, 1000, 1000)
             self.logger.info('Created file: ' + output_path)
