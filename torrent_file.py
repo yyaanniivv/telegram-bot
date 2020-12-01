@@ -30,6 +30,7 @@ class TorrentFile:
             # torrent_file.write('d10:magnet-uri' + str(len(btih)) + ':' + btih + 'e')
             torrent_file.write(f'd10:magnet-uri{str(len(btih))}:{btih}e')
             torrent_file.close()
+            os.chown(output_path, 1000, 1000)
             self.logger.info('Created file: ' + output_path)
             return file_name
         else:
