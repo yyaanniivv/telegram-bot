@@ -11,6 +11,7 @@ RUN apt-get update \
   && pip install -r requirements.txt \
   && apt-get purge -y --auto-remove gcc libssl-dev python3-dev libffi-dev
 
+USER 1000:1000
 COPY . /app
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
