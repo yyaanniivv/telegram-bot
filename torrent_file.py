@@ -26,9 +26,6 @@ class TorrentFile:
             output_path = os.path.join(os.environ.get('OUTPUT_DIR'),
                                        file_name)
             torrent_file = open(output_path, 'w+')
-            # TODO: test and remove this
-            # torrent_file.write('d10:magnet-uri' +
-            #                    str(len(self.magnet)) + ':' + self.magnet + 'e')
             torrent_file.write(
                 f'd10:magnet-uri{str(len(self.magnet))}:{self.magnet}e')
             torrent_file.close()
