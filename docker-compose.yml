@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  backend:
+    env_file: .env
+    # environment:
+    #   - PYTHONUNBUFFERED=1
+    image: yyaanniivv/telegram-bot:buildx-latest
+    tty: true # docker run -t
+    stdin_open: true # docker run -i
+    #cmd: with hotreloading/monitor for dev
+    volumes:
+      - ./:/app

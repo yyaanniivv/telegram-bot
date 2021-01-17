@@ -1,0 +1,8 @@
+# Files that are not to be included in the docker build command 
+.*
+docker-compose.yml
+/log/bot.log
+/tmp
+!/tmp/.gitkeep
+/__pycache__
+/output
