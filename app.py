@@ -9,6 +9,7 @@ from telegram.ext import (CallbackContext, CommandHandler, Filters,
 
 from torrent_file import TorrentFile
 from tpb_adaptor import TpbAdaptor
+import urllib3
 
 # __MAIN__
 # Load .env params:
@@ -45,7 +46,7 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(reply)
 
 
-def help(update: Update, context: CallbackContext) -> None:
+def helper(update: Update, context: CallbackContext) -> None:
     """/help returns the general usage of the bot"""
     update.message.reply_text(
         '''Hi there!
@@ -75,13 +76,21 @@ def inline_lookup(update: Update, context: CallbackContext) -> None:
 
 def echo(update: Update, context: CallbackContext):
     """Echo the message back to the user"""
-    logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
-    update.message.reply_text(f'Echo: {update.message.text}')
+    if("myip" in update.message.text):
+        myport = os.environ.get('MYPORT')
+        http = urllib3.PoolManager()
+        myip = http.request('GET', 'https://ident.me').data.decode()
+        output_msg = f'{myip}:{myport}'
+        logger.info(f'myip: {update.message.chat.username}, {output_msg}')
+        update.message.reply_text(output_msg)
+    else:
+        logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
+        update.message.reply_text(f'Echo: {update.message.text}')
 
 
 inline_handler = InlineQueryHandler(inline_lookup)
 start_handler = CommandHandler('start', start, approved_user_filter)
-help_handler = CommandHandler('help', help)
+help_handler = CommandHandler('help', helper)
 echo_handler = MessageHandler(
     approved_user_filter &
     Filters.text & (~Filters.command), echo)
