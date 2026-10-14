@@ -16,6 +16,11 @@ import urllib3
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
+# Validate critical env vars:
+SEARCH_URL = os.environ.get('SEARCH_URL', '')
+if not SEARCH_URL.startswith('https://'):
+    raise ValueError(f'SEARCH_URL must use HTTPS (got: {SEARCH_URL})')
+
 # Setup Token:
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
 updater = Updater(TOKEN, use_context=True)

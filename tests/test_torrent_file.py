@@ -4,21 +4,21 @@ import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 
-from torrent_file import TorrentFile, extract_btih
+from torrent_file import TorrentFile, extract_btih, validate_btih, validate_magnet, validate_input
 
 
 class TestExtractBtih:
     """Tests for extract_btih function."""
 
     def test_valid_magnet_link(self):
-        magnet = "magnet:?xt=urn:btih:abcd1234efgh5678ijkl9012mnop3456qrst7890"
+        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
         result = extract_btih(magnet)
-        assert result == "abcd1234efgh5678ijkl9012mnop3456qrst7890"
+        assert result == "abcd1234efab5678efab9012abcd3456efab7890"
 
     def test_magnet_with_trackers(self):
-        magnet = "magnet:?xt=urn:btih:abcd1234efgh5678ijkl9012mnop3456qrst7890&tr=udp%3A%2F%2Ftracker.example.com"
+        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890&tr=udp%3A%2F%2Ftracker.example.com"
         result = extract_btih(magnet)
-        assert result == "abcd1234efgh5678ijkl9012mnop3456qrst7890"
+        assert result == "abcd1234efab5678efab9012abcd3456efab7890"
 
     def test_invalid_magnet_returns_none(self):
         # The current implementation returns a tuple, so let's test actual behavior
@@ -27,6 +27,53 @@ class TestExtractBtih:
         # Current impl: pattern.match returns None, .groups(1) fails
         # This documents current behavior - may need fixing
         assert result is None or result == ()
+
+
+class TestValidation:
+    """Tests for input validation functions."""
+
+    def test_validate_btih_valid(self):
+        # 40 valid hex chars
+        btih = "abcd1234efab5678efab9012abcd3456efab7890"
+        assert validate_btih(btih) is True
+
+    def test_validate_btih_invalid_too_short(self):
+        assert validate_btih("abc") is False
+
+    def test_validate_btih_invalid_too_long(self):
+        assert validate_btih("a" * 41) is False
+
+    def test_validate_btih_invalid_non_hex(self):
+        assert validate_btih("ghijklmnopqrstuvwxyz12345678901234") is False
+
+    def test_validate_magnet_valid(self):
+        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+        assert validate_magnet(magnet) is True
+
+    def test_validate_magnet_with_trackers(self):
+        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890&tr=udp://tracker.example.com"
+        assert validate_magnet(magnet) is True
+
+    def test_validate_magnet_invalid(self):
+        assert validate_magnet("not-a-magnet") is False
+        assert validate_magnet("magnet:?xt=urn:btih:invalid") is False
+
+    def test_validate_input_btih(self):
+        btih = "abcd1234efab5678efab9012abcd3456efab7890"
+        is_valid, input_type = validate_input(btih)
+        assert is_valid is True
+        assert input_type == 'btih'
+
+    def test_validate_input_magnet(self):
+        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+        is_valid, input_type = validate_input(magnet)
+        assert is_valid is True
+        assert input_type == 'magnet'
+
+    def test_validate_input_invalid(self):
+        is_valid, input_type = validate_input("invalid")
+        assert is_valid is False
+        assert input_type == 'invalid'
 
 
 class TestTorrentFile:
@@ -48,7 +95,7 @@ class TestTorrentFile:
     })
     def test_create_from_btih(self):
         """Test creating torrent file from BTIH hash (40 chars)."""
-        btih = "abcd1234efgh5678ijkl9012mnop3456qrst7890"
+        btih = "abcd1234efab5678efab9012abcd3456efab7890"
         args = [btih, "test search term"]
 
         with patch('torrent_file.os.path.join', return_value=os.path.join(self.temp_dir, 'test.torrent')):
@@ -70,7 +117,7 @@ class TestTorrentFile:
     })
     def test_create_from_magnet(self):
         """Test creating torrent file from full magnet link."""
-        magnet = "magnet:?xt=urn:btih:abcd1234efgh5678ijkl9012mnop3456qrst7890&tr=udp://tracker.example.com"
+        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890&tr=udp://tracker.example.com"
         args = [magnet, "test search term"]
 
         with patch('torrent_file.os.path.join', return_value=os.path.join(self.temp_dir, 'test.torrent')):
@@ -102,16 +149,20 @@ class TestTorrentFile:
                     assert result == '' or result is None
 
     def test_is_btih_valid(self):
-        """Test is_btih recognizes 40-char strings."""
+        """Test is_btih recognizes 40-char hex strings."""
         torrent = TorrentFile(["a" * 40, "term"], self.mock_logger)
         assert torrent.is_btih() is True
 
     def test_is_btih_invalid(self):
-        """Test is_btih rejects non-40-char strings."""
+        """Test is_btih rejects non-40-char or non-hex strings."""
         torrent = TorrentFile(["short", "term"], self.mock_logger)
         assert torrent.is_btih() is False
 
         torrent = TorrentFile(["magnet:?xt=urn:btih:...", "term"], self.mock_logger)
+        assert torrent.is_btih() is False
+
+        # 40 chars but non-hex
+        torrent = TorrentFile(["g" * 40, "term"], self.mock_logger)
         assert torrent.is_btih() is False
 
 
