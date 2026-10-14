@@ -6,7 +6,9 @@ import time
 def extract_btih(text):
     pattern = re.compile('magnet:\\?xt=urn:btih:([^&/]+)')
     matches = pattern.match(text)
-    return matches.groups(1)[0]
+    if matches:
+        return matches.groups(1)[0]
+    return None
 
 
 class TorrentFile:
