@@ -16,6 +16,11 @@ import urllib3
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
+# Validate critical env vars:
+SEARCH_URL = os.environ.get('SEARCH_URL', '')
+if not SEARCH_URL.startswith('https://'):
+    raise ValueError(f'SEARCH_URL must use HTTPS (got: {SEARCH_URL})')
+
 # Setup Token:
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
 updater = Updater(TOKEN, use_context=True)
@@ -42,7 +47,12 @@ def start(update: Update, context: CallbackContext) -> None:
     if len(context.args) == 1:
         context.args.append('NoSearch')
     output_path = TorrentFile(context.args, logger).create()
-    reply = 'Failed to create file' if output_path == '' else f'File created successfully, {output_path}'
+    if output_path is None:
+        reply = 'Invalid input. Please provide a valid BTIH (40 hex chars) or magnet link.'
+    elif output_path == '':
+        reply = 'Failed to create file'
+    else:
+        reply = f'File created successfully, {output_path}'
     update.message.reply_text(reply)
 
 
