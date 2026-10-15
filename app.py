@@ -47,7 +47,12 @@ def start(update: Update, context: CallbackContext) -> None:
     if len(context.args) == 1:
         context.args.append('NoSearch')
     output_path = TorrentFile(context.args, logger).create()
-    reply = 'Failed to create file' if output_path == '' else f'File created successfully, {output_path}'
+    if output_path is None:
+        reply = 'Invalid input. Please provide a valid BTIH (40 hex chars) or magnet link.'
+    elif output_path == '':
+        reply = 'Failed to create file'
+    else:
+        reply = f'File created successfully, {output_path}'
     update.message.reply_text(reply)
 
 
