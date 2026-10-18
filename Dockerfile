@@ -14,9 +14,12 @@ RUN apt-get update \
 # Create non-root user
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
-COPY . /app
+COPY --chown=appuser:appgroup . /app
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
+
+# Create log and output directories with correct ownership
+RUN mkdir -p /app/log /app/output && chown -R appuser:appgroup /app/log /app/output
 
 # Switch to non-root user
 USER appuser
