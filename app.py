@@ -1,11 +1,11 @@
+import asyncio
 import logging
 from os.path import dirname, join, os
 
 from dotenv import load_dotenv
-from telegram import (InlineQueryResultArticle, InputTextMessageContent,
-                      Update)
-from telegram.ext import (CallbackContext, CommandHandler, Filters,
-                          InlineQueryHandler, MessageHandler, Updater)
+from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
+from telegram.ext import (Application, CommandHandler, ContextTypes,
+                          InlineQueryHandler, MessageHandler, filters)
 
 from torrent_file import TorrentFile
 from tpb_adaptor import TpbAdaptor
@@ -23,9 +23,9 @@ if not SEARCH_URL.startswith('https://'):
 
 # Setup Token:
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
-updater = Updater(TOKEN, use_context=True)
+application = Application.builder().token(TOKEN).build()
 approved_user_ids = list(map(int, os.environ.get('APPROVED_IDS').split(',')))
-approved_user_filter = Filters.user(user_id=approved_user_ids)
+approved_user_filter = filters.User(user_id=approved_user_ids)
 
 # Logger setup:
 logging_level = os.environ.get('LOG_LEVEL')
@@ -42,7 +42,7 @@ logger.addHandler(handler)
 tpbAdaptor = TpbAdaptor(logger)
 
 
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/start create torrent file from btih or magnet link"""
     if len(context.args) == 1:
         context.args.append('NoSearch')
@@ -53,23 +53,28 @@ def start(update: Update, context: CallbackContext) -> None:
         reply = 'Failed to create file'
     else:
         reply = f'File created successfully, {output_path}'
-    update.message.reply_text(reply)
+    await update.message.reply_text(reply)
 
 
-def helper(update: Update, context: CallbackContext) -> None:
+async def helper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/help returns the general usage of the bot"""
-    update.message.reply_text(
+    await update.message.reply_text(
         '''Hi there!
 @living_room_bot search_phrase - inline search,
 /start - brih|magnet [<name>],
 /help - to view this message.''')
 
 
-def inline_lookup(update: Update, context: CallbackContext) -> None:
+async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """@bot inline search """
     logger.info(f'Inline: {update.inline_query.query}')
-    results = tpbAdaptor.fetch_magnet_links(
-        update.inline_query.query, int(os.environ.get('LIMIT')))
+    loop = asyncio.get_running_loop()
+    results = await loop.run_in_executor(
+        None,
+        tpbAdaptor.fetch_magnet_links,
+        update.inline_query.query,
+        int(os.environ.get('LIMIT'))
+    )
     articles = list()
     for magnet in results:
         articles.append(
@@ -81,10 +86,10 @@ def inline_lookup(update: Update, context: CallbackContext) -> None:
                 description=magnet['description'],
             )
         )
-    context.bot.answer_inline_query(update.inline_query.id, articles)
+    await update.inline_query.answer(articles)
 
 
-def echo(update: Update, context: CallbackContext):
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Echo the message back to the user"""
     if ("myip" in update.message.text):
         myport = os.environ.get('MYPORT')
@@ -92,26 +97,19 @@ def echo(update: Update, context: CallbackContext):
         myip = http.request('GET', 'https://ident.me').data.decode()
         output_msg = f'{myip}:{myport}'
         logger.info(f'myip: {update.message.chat.username}, {output_msg}')
-        update.message.reply_text(output_msg)
+        await update.message.reply_text(output_msg)
     else:
         logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
-        update.message.reply_text(f'Echo: {update.message.text}')
+        await update.message.reply_text(f'Echo: {update.message.text}')
 
 
-inline_handler = InlineQueryHandler(inline_lookup)
-start_handler = CommandHandler('start', start, approved_user_filter)
-help_handler = CommandHandler('help', helper)
-echo_handler = MessageHandler(
-    approved_user_filter &
-    Filters.text & (~Filters.command), echo)
-
-updater.dispatcher.add_handler(echo_handler)
-updater.dispatcher.add_handler(start_handler)
-updater.dispatcher.add_handler(help_handler)
-updater.dispatcher.add_handler(inline_handler)
+application.add_handler(InlineQueryHandler(inline_lookup))
+application.add_handler(CommandHandler('start', start, filters=approved_user_filter))
+application.add_handler(CommandHandler('help', helper))
+application.add_handler(MessageHandler(
+    approved_user_filter & filters.TEXT & ~filters.COMMAND, echo))
 
 
 # Start bot
 print("Bot up and listening!")
-updater.start_polling()
-updater.idle()
+application.run_polling()

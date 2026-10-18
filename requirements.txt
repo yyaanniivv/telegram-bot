@@ -1,4 +1,4 @@
-APScheduler==3.6.3
+APScheduler==3.11.3
 astroid==2.4.2
 autopep8==1.5.4
 certifi==2026.7.22
@@ -12,11 +12,11 @@ pycodestyle==2.6.0
 pycparser==2.20
 pylint==2.6.0
 python-dotenv==1.2.2
-python-telegram-bot==13.0
+python-telegram-bot==22.8
 pytz==2020.4
 six==1.15.0
 toml==0.10.2
 tornado==6.5.10
-tzlocal==2.1
+tzlocal==5.3.1
 urllib3==2.8.0
 wrapt==1.12.1
