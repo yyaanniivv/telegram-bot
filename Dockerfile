@@ -1,4 +1,4 @@
-FROM python:3.9-slim-buster AS build-env
+FROM python:3.11-slim-bookworm AS build-env
 
 # This helps docker not rebuild unless "requirements.txt" is touched.
 COPY ./requirements.txt .

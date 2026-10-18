@@ -11,12 +11,12 @@ mccabe==0.6.1
 pycodestyle==2.6.0
 pycparser==2.20
 pylint==2.6.0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 python-telegram-bot==13.0
 pytz==2020.4
 six==1.15.0
 toml==0.10.2
 tornado==6.5.10
 tzlocal==2.1
-urllib3==2.6.3
+urllib3==2.8.0
 wrapt==1.12.1
