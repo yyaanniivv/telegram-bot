@@ -66,9 +66,31 @@ cp .env.example .env
 python app.py
 ```
 
+## Release Process
+
+The CD pipeline (`.github/workflows/cd.yml`) triggers on **semantic version tags** (`v*`):
+
+```bash
+# 1. Merge changes to master (CI runs automatically)
+git push origin master
+
+# 2. When ready to release, tag and push
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This builds & pushes a multi-arch image (`linux/amd64,linux/arm64`) to Docker Hub as `yyaanniivv/telegram-bot:v1.0.0` and `yyaanniivv/telegram-bot:latest`, then runs a Trivy vulnerability scan.
+
+**Required GitHub Secrets** (Settings → Secrets → Actions):
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
+---
+
 ## Tech Stack
 
 - **Python**: 3.11.9
 - **Telegram**: python-telegram-bot 13.x (PTB 21.x upgrade planned)
 - **HTTP**: urllib3 2.8.x
 - **Deployment**: Docker multi-stage, multi-arch via buildx
+- **CI/CD**: GitHub Actions (lint, test, audit, multi-arch build, Trivy scan)
