@@ -11,8 +11,10 @@ RUN apt-get update \
   && pip install -r requirements.txt \
   && apt-get purge -y --auto-remove gcc libssl-dev python3-dev libffi-dev
 
-# Create non-root user
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+# Create non-root user with configurable UID/GID (defaults to 1000:1000)
+ARG PUID=1000
+ARG PGID=1000
+RUN groupadd -g "$PGID" appgroup && useradd -u "$PUID" -g "$PGID" -m appuser
 
 COPY --chown=appuser:appgroup . /app
 WORKDIR /app
@@ -21,7 +23,9 @@ ENV PYTHONUNBUFFERED=1
 # Create log and output directories with correct ownership
 RUN mkdir -p /app/log /app/output && chown -R appuser:appgroup /app/log /app/output
 
-# Switch to non-root user
-USER appuser
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "app.py"]
