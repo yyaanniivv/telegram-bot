@@ -58,14 +58,18 @@ class TorrentFile:
         # Validate input
         is_valid, input_type = validate_input(self.magnet)
         if not is_valid:
-            self.logger.warning(f'Invalid input rejected: {self.magnet[:50]}... (type: {input_type})')
+            self.logger.warning(
+                f'Invalid input rejected: {self.magnet[:50]}... (type: {input_type})'
+            )
             return
 
         if input_type == 'btih':
             self.logger.info(f'Got btih: {self.magnet}. Wrapping it up!')
-            self.magnet = f"{os.environ.get('MAGNET_PREFIX')}{self.magnet}{os.environ.get('MAGNET_SUFFIX')}"
+            prefix = os.environ.get('MAGNET_PREFIX')
+            suffix = os.environ.get('MAGNET_SUFFIX')
+            self.magnet = f"{prefix}{self.magnet}{suffix}"
         else:  # magnet
-            self.logger.info(f'Got magnetlink.')
+            self.logger.info('Got magnetlink.')
 
         file_name = f'bot-{date}-{self.search_term}.torrent'
         output_path = os.path.join(os.environ.get('OUTPUT_DIR'),
