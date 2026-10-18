@@ -1,6 +1,74 @@
 # Magnet2Torrent Telegram Bot
-### Doing:
-Telegram bot which accepts magnet links and turns them into a `.torrent` files locally.
 
-### Using:
-* [Telepot](https://github.com/nickoala/telepot), the python telegram client library.
+Telegram bot which accepts magnet links and turns them into `.torrent` files locally.
+
+## Building & Deploying (Multi-Arch)
+
+### One-time Setup
+
+```bash
+# Create a BuildKit builder with QEMU for cross-compilation
+docker buildx create --name multiarch --driver docker-container --use
+docker buildx inspect --bootstrap
+```
+
+### Build & Push Multi-Arch Image
+
+```bash
+# Build for AMD64 + ARM64 and push to registry
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t yyaanniivv/telegram-bot:buildx-latest \
+  --push \
+  .
+```
+
+### Local Build (Single Arch)
+
+```bash
+# Quick local build for current architecture
+docker compose build
+# or
+docker build -t yyaanniivv/telegram-bot:local .
+```
+
+### Run with Docker Compose
+
+```bash
+# Requires .env with TELEGRAM_TOKEN, APPROVED_IDS, SEARCH_URL, etc.
+docker compose up -d
+```
+
+## Development
+
+### Python Environment
+
+```bash
+# Requires pyenv + pyenv-virtualenv
+pyenv install 3.11.9
+pyenv virtualenv 3.11.9 telegram-bot
+pyenv activate telegram-bot
+pip install -r requirements.txt
+pip install pytest
+```
+
+### Run Tests
+
+```bash
+PYTHONPATH=. pytest tests/ -v
+```
+
+### Run Locally
+
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+python app.py
+```
+
+## Tech Stack
+
+- **Python**: 3.11.9
+- **Telegram**: python-telegram-bot 13.x (PTB 21.x upgrade planned)
+- **HTTP**: urllib3 2.8.x
+- **Deployment**: Docker multi-stage, multi-arch via buildx
