@@ -3,7 +3,7 @@ from os.path import dirname, join, os
 
 from dotenv import load_dotenv
 from telegram import (InlineQueryResultArticle, InputTextMessageContent,
-                      ParseMode, Update)
+                      Update)
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           InlineQueryHandler, MessageHandler, Updater)
 
@@ -86,7 +86,7 @@ def inline_lookup(update: Update, context: CallbackContext) -> None:
 
 def echo(update: Update, context: CallbackContext):
     """Echo the message back to the user"""
-    if("myip" in update.message.text):
+    if ("myip" in update.message.text):
         myport = os.environ.get('MYPORT')
         http = urllib3.PoolManager()
         myip = http.request('GET', 'https://ident.me').data.decode()

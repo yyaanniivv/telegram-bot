@@ -26,7 +26,10 @@ def get_magnet_details(entry: object, search_phrase: str):
         'id': entry['info_hash'],
         'title': entry['name'],
         'command_msg': f"/start {entry['info_hash']} {search_phrase}",
-        'description': ' | '.join('{}:{}'.format(key.capitalize(), val) for key, val in description_object.items()),
+        'description': ' | '.join(
+            '{}:{}'.format(key.capitalize(), val)
+            for key, val in description_object.items()
+        ),
     }
     return magnet_object
 

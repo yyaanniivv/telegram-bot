@@ -16,7 +16,10 @@ class TestExtractBtih:
         assert result == "abcd1234efab5678efab9012abcd3456efab7890"
 
     def test_magnet_with_trackers(self):
-        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890&tr=udp%3A%2F%2Ftracker.example.com"
+        magnet = (
+            "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+            "&tr=udp%3A%2F%2Ftracker.example.com"
+        )
         result = extract_btih(magnet)
         assert result == "abcd1234efab5678efab9012abcd3456efab7890"
 
@@ -47,11 +50,16 @@ class TestValidation:
         assert validate_btih("ghijklmnopqrstuvwxyz12345678901234") is False
 
     def test_validate_magnet_valid(self):
-        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+        magnet = (
+            "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+        )
         assert validate_magnet(magnet) is True
 
     def test_validate_magnet_with_trackers(self):
-        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890&tr=udp://tracker.example.com"
+        magnet = (
+            "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+            "&tr=udp://tracker.example.com"
+        )
         assert validate_magnet(magnet) is True
 
     def test_validate_magnet_invalid(self):
@@ -98,9 +106,10 @@ class TestTorrentFile:
         btih = "abcd1234efab5678efab9012abcd3456efab7890"
         args = [btih, "test search term"]
 
-        with patch('torrent_file.os.path.join', return_value=os.path.join(self.temp_dir, 'test.torrent')):
-            with patch('torrent_file.open', create=True) as mock_open:
-                with patch('torrent_file.os.chown') as mock_chown:
+        with patch('torrent_file.os.path.join',
+                   return_value=os.path.join(self.temp_dir, 'test.torrent')):
+            with patch('torrent_file.open', create=True) as _mock_open:  # noqa: F841
+                with patch('torrent_file.os.chown') as _mock_chown:  # noqa: F841
                     torrent = TorrentFile(args, self.mock_logger)
                     result = torrent.create()
 
@@ -117,12 +126,16 @@ class TestTorrentFile:
     })
     def test_create_from_magnet(self):
         """Test creating torrent file from full magnet link."""
-        magnet = "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890&tr=udp://tracker.example.com"
+        magnet = (
+            "magnet:?xt=urn:btih:abcd1234efab5678efab9012abcd3456efab7890"
+            "&tr=udp://tracker.example.com"
+        )
         args = [magnet, "test search term"]
 
-        with patch('torrent_file.os.path.join', return_value=os.path.join(self.temp_dir, 'test.torrent')):
-            with patch('torrent_file.open', create=True) as mock_open:
-                with patch('torrent_file.os.chown') as mock_chown:
+        with patch('torrent_file.os.path.join',
+                   return_value=os.path.join(self.temp_dir, 'test.torrent')):
+            with patch('torrent_file.open', create=True) as _mock_open:  # noqa: F841
+                with patch('torrent_file.os.chown') as _mock_chown:  # noqa: F841
                     torrent = TorrentFile(args, self.mock_logger)
                     result = torrent.create()
 
@@ -140,9 +153,10 @@ class TestTorrentFile:
         """Test that invalid input (not BTIH, not magnet) returns empty."""
         args = ["invalid", "test"]
 
-        with patch('torrent_file.os.path.join', return_value=os.path.join(self.temp_dir, 'test.torrent')):
-            with patch('torrent_file.open', create=True) as mock_open:
-                with patch('torrent_file.os.chown') as mock_chown:
+        with patch('torrent_file.os.path.join',
+                   return_value=os.path.join(self.temp_dir, 'test.torrent')):
+            with patch('torrent_file.open', create=True) as _mock_open:  # noqa: F841
+                with patch('torrent_file.os.chown') as _mock_chown:  # noqa: F841
                     torrent = TorrentFile(args, self.mock_logger)
                     result = torrent.create()
 
@@ -180,16 +194,20 @@ class TestTPBAdaptor:
     })
     def test_fetch_magnet_links_success(self, mock_pool):
         """Test successful search returns parsed results."""
-        from tpb_adaptor import TpbAdaptor, get_magnet_details
+        from tpb_adaptor import TpbAdaptor
 
         # Mock response
         mock_response = MagicMock()
         mock_response.status = 200
-        mock_response.data = b'''[
-            {},
-            {"info_hash": "abcd1234", "name": "Test Torrent", "size": "1048576", "seeders": "10", "leechers": "5", "added": "1704067200"},
-            {"info_hash": "efgh5678", "name": "Another Torrent", "size": "2097152", "seeders": "20", "leechers": "3", "added": "1704153600"}
-        ]'''
+        mock_response.data = (
+            b'[\n'
+            b'    {},\n'
+            b'    {"info_hash": "abcd1234", "name": "Test Torrent", "size": "1048576", '
+            b'"seeders": "10", "leechers": "5", "added": "1704067200"},\n'
+            b'    {"info_hash": "efgh5678", "name": "Another Torrent", "size": "2097152", '
+            b'"seeders": "20", "leechers": "3", "added": "1704153600"}\n'
+            b']'
+        )
         mock_pool.return_value.request.return_value = mock_response
 
         adaptor = TpbAdaptor(self.mock_logger)
