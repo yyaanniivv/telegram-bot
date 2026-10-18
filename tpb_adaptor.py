@@ -14,17 +14,23 @@ load_dotenv(dotenv_path)
 
 def get_magnet_details(entry: object, search_phrase: str):
     date = time.strftime('%Y-%m-%d', time.localtime(int(entry['added'])))
-    size = str(round(int(entry["size"]) / 1024**2, 2)) + 'Mib'  # Size in MiB
+    size = str(round(int(entry["size"]) / 1024**2, 2)) + 'MiB'  # Size in MiB
     description_object = {
         'uploaded': date,
         'size': size,
         'seeders ^': entry['seeders'],
-        'leachers v': entry['leechers'],
+        'leechers v': entry['leechers'],
     }
+
+    # Build magnet link from BTIH
+    magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
+    magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
+    magnet_link = f"{magnet_prefix}{entry['info_hash']}{magnet_suffix}"
 
     magnet_object = {  # btih_article
         'id': entry['info_hash'],
         'title': entry['name'],
+        'magnet_link': magnet_link,
         'command_msg': f"/start {entry['info_hash']} {search_phrase}",
         'description': ' | '.join(
             '{}:{}'.format(key.capitalize(), val)
