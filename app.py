@@ -57,12 +57,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elif output_path == '':
         reply = 'Failed to create file'
     else:
-        reply = f'✅ Torrent file created: {output_path}\n\nTap a button below to copy:'
-        # Add copy buttons to the reply
+        reply = f'✅ Torrent file created: {output_path}\n\nTap a button below to view:'
+        # Add view buttons to the reply
         btih = context.args[0]
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("📋 Copy Magnet", callback_data=f"magnet:{btih}"),
-            InlineKeyboardButton("🔑 Copy BTIH", callback_data=f"btih:{btih}"),
+            InlineKeyboardButton("📋 View Magnet", callback_data=f"magnet:{btih}"),
+            InlineKeyboardButton("🔑 View BTIH", callback_data=f"btih:{btih}"),
         ]])
         await update.message.reply_text(reply, reply_markup=keyboard)
         return
@@ -145,7 +145,7 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
     magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
     magnet_link = f"{magnet_prefix}{btih}{magnet_suffix}"
 
-    text = f"📋 Magnet link (tap to copy):\n\n`{magnet_link}`"
+    text = f"📋 Magnet link:\n\n`{magnet_link}`"
 
     if query.message:
         # Regular message - send new message
@@ -178,7 +178,7 @@ async def callback_copy_btih(update: Update, context: ContextTypes.DEFAULT_TYPE)
     btih = data.split(":", 1)[1]
     logger.info(f'Callback copy btih: {btih}')
 
-    text = f"🔑 BTIH (tap to copy):\n\n`{btih}`"
+    text = f"🔑 BTIH:\n\n`{btih}`"
 
     if query.message:
         # Regular message - send new message
