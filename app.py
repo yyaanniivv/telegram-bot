@@ -105,7 +105,7 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             ),
             InlineKeyboardButton(
                 "📋 Copy Magnet",
-                url=magnet.get('magnet_link', '')
+                callback_data=f"magnet:{btih}"
             ),
         ]])
 
@@ -153,6 +153,31 @@ async def callback_create_torrent(update: Update, context: ContextTypes.DEFAULT_
     await query.edit_message_text(reply)
 
 
+async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'Copy Magnet' button callback - show magnet link"""
+    query = update.callback_query
+    await query.answer()
+
+    # callback_data format: "magnet:<btih>"
+    data = query.data
+    if not data.startswith("magnet:"):
+        await query.edit_message_text("Invalid action")
+        return
+
+    btih = data.split(":", 1)[1]
+    logger.info(f'Callback copy magnet: {btih}')
+
+    # Build magnet link from env vars
+    magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
+    magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
+    magnet_link = f"{magnet_prefix}{btih}{magnet_suffix}"
+
+    await query.edit_message_text(
+        f"📋 Magnet link (tap to copy):\n\n`{magnet_link}`",
+        parse_mode='Markdown'
+    )
+
+
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Echo the message back to the user"""
     if ("myip" in update.message.text):
@@ -175,6 +200,8 @@ application.add_handler(MessageHandler(
     approved_user_filter & filters.TEXT & ~filters.COMMAND, echo))
 application.add_handler(CallbackQueryHandler(
     callback_create_torrent, pattern=r'^create:'))
+application.add_handler(CallbackQueryHandler(
+    callback_copy_magnet, pattern=r'^magnet:'))
 
 
 # Start bot
