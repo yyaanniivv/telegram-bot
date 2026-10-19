@@ -97,15 +97,21 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     articles = []
     for magnet in page_results:
         btih = magnet['id']
+        # Include search term in callback_data for proper naming
+        # Format: create:<btih>:<search_term> (max 64 bytes for callback_data)
+        search_term_safe = query.replace(' ', '_')[:30]
+        create_callback = f"create:{btih}:{search_term_safe}"
+        magnet_callback = f"magnet:{btih}"
+
         # Create inline keyboard with action buttons
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton(
                 "📥 Create .torrent",
-                callback_data=f"create:{btih}"
+                callback_data=create_callback
             ),
             InlineKeyboardButton(
                 "📋 Copy Magnet",
-                callback_data=f"magnet:{btih}"
+                callback_data=magnet_callback
             ),
         ]])
 
@@ -132,17 +138,23 @@ async def callback_create_torrent(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
 
-    # callback_data format: "create:<btih>"
+    # callback_data format: "create:<btih>:<search_term>"
     data = query.data
     if not data.startswith("create:"):
         await query.edit_message_text("Invalid action")
         return
 
-    btih = data.split(":", 1)[1]
-    logger.info(f'Callback create torrent: {btih}')
+    parts = data.split(":", 2)
+    if len(parts) < 2:
+        await query.edit_message_text("Invalid callback data")
+        return
 
-    # Create torrent file
-    output_path = TorrentFile([btih, 'FromInline'], logger).create()
+    btih = parts[1]
+    search_term = parts[2].replace('_', ' ') if len(parts) > 2 else 'FromInline'
+    logger.info(f'Callback create torrent: {btih} (search: {search_term})')
+
+    # Create torrent file with search term as name
+    output_path = TorrentFile([btih, search_term], logger).create()
     if output_path is None:
         reply = 'Failed to create torrent file. Invalid BTIH.'
     elif output_path == '':
