@@ -104,16 +104,7 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     articles = []
     for magnet in page_results:
         btih = magnet['id']
-        # Callback data: btih only (search term is in the /start message)
-        btih_callback = f"btih:{btih}"
-        magnet_callback = f"magnet:{btih}"
-
-        # Inline keyboard with copy buttons (Create is automatic via /start)
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("📋 Copy Magnet", callback_data=magnet_callback),
-            InlineKeyboardButton("🔑 Copy BTIH", callback_data=btih_callback),
-        ]])
-
+        # No inline keyboard in results - buttons will be added by start handler
         articles.append(
             InlineQueryResultArticle(
                 id=btih,
@@ -121,7 +112,6 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 input_message_content=InputTextMessageContent(
                     magnet['command_msg']),
                 description=magnet['description'][:256],
-                reply_markup=keyboard,
             )
         )
 
@@ -133,13 +123,19 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle 'Copy Magnet' button callback - show magnet link"""
+    """Handle 'Copy Magnet' button callback"""
     query = update.callback_query
     await query.answer()
 
     data = query.data
     if not data.startswith("magnet:"):
-        await query.edit_message_text("Invalid action")
+        if query.message:
+            await query.message.reply_text("Invalid action")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid action"
+            )
         return
 
     btih = data.split(":", 1)[1]
@@ -149,29 +145,51 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
     magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
     magnet_link = f"{magnet_prefix}{btih}{magnet_suffix}"
 
-    await query.edit_message_text(
-        f"📋 Magnet link (tap to copy):\n\n`{magnet_link}`",
-        parse_mode='Markdown'
-    )
+    text = f"📋 Magnet link (tap to copy):\n\n`{magnet_link}`"
+
+    if query.message:
+        # Regular message - send new message
+        await query.message.reply_text(text, parse_mode='Markdown')
+    elif query.inline_message_id:
+        # Inline message - edit the inline message
+        await context.bot.edit_message_text(
+            inline_message_id=query.inline_message_id,
+            text=text,
+            parse_mode='Markdown'
+        )
 
 
 async def callback_copy_btih(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle 'Copy BTIH' button callback - show BTIH"""
+    """Handle 'Copy BTIH' button callback"""
     query = update.callback_query
     await query.answer()
 
     data = query.data
     if not data.startswith("btih:"):
-        await query.edit_message_text("Invalid action")
+        if query.message:
+            await query.message.reply_text("Invalid action")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid action"
+            )
         return
 
     btih = data.split(":", 1)[1]
     logger.info(f'Callback copy btih: {btih}')
 
-    await query.edit_message_text(
-        f"🔑 BTIH (tap to copy):\n\n`{btih}`",
-        parse_mode='Markdown'
-    )
+    text = f"🔑 BTIH (tap to copy):\n\n`{btih}`"
+
+    if query.message:
+        # Regular message - send new message
+        await query.message.reply_text(text, parse_mode='Markdown')
+    elif query.inline_message_id:
+        # Inline message - edit the inline message
+        await context.bot.edit_message_text(
+            inline_message_id=query.inline_message_id,
+            text=text,
+            parse_mode='Markdown'
+        )
 
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
