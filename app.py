@@ -10,7 +10,7 @@ from telegram.ext import (Application, CallbackQueryHandler,
                           InlineQueryHandler, MessageHandler, filters)
 
 from torrent_file import TorrentFile
-from tpb_adaptor import TpbAdaptor
+from tpb_adaptor import TpbAdaptor, build_magnet_link
 import urllib3
 
 # __MAIN__
@@ -136,9 +136,7 @@ async def callback_view_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
     btih = data.split(":", 1)[1]
     logger.info(f'Callback view magnet: {btih}')
 
-    magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
-    magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
-    magnet_link = f"{magnet_prefix}{btih}{magnet_suffix}"
+    magnet_link = build_magnet_link(btih)
 
     text = f"📋 Magnet link:\n\n`{magnet_link}`"
 

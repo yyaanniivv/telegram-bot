@@ -12,6 +12,13 @@ load_dotenv(dotenv_path)
 #  TODO: magnet_object will have to_string, to_article, to_json
 
 
+def build_magnet_link(btih: str) -> str:
+    """Build magnet link from BTIH using environment variables."""
+    magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
+    magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
+    return f"{magnet_prefix}{btih}{magnet_suffix}"
+
+
 def get_magnet_details(entry: object, search_phrase: str):
     date = time.strftime('%Y-%m-%d', time.localtime(int(entry['added'])))
     size = str(round(int(entry["size"]) / 1024**2, 2)) + 'MiB'  # Size in MiB
@@ -22,10 +29,7 @@ def get_magnet_details(entry: object, search_phrase: str):
         'leechers v': entry['leechers'],
     }
 
-    # Build magnet link from BTIH
-    magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
-    magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
-    magnet_link = f"{magnet_prefix}{entry['info_hash']}{magnet_suffix}"
+    magnet_link = build_magnet_link(entry['info_hash'])
 
     magnet_object = {  # btih_article
         'id': entry['info_hash'],
