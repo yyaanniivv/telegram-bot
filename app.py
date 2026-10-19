@@ -3,12 +3,14 @@ import logging
 from os.path import dirname, join, os
 
 from dotenv import load_dotenv
-from telegram import InlineQueryResultArticle, InputTextMessageContent, Update
-from telegram.ext import (Application, CommandHandler, ContextTypes,
+from telegram import (InlineQueryResultArticle, InputTextMessageContent,
+                      Update, InlineKeyboardMarkup, InlineKeyboardButton)
+from telegram.ext import (Application, CallbackQueryHandler,
+                          CommandHandler, ContextTypes,
                           InlineQueryHandler, MessageHandler, filters)
 
 from torrent_file import TorrentFile
-from tpb_adaptor import TpbAdaptor
+from tpb_adaptor import TpbAdaptor, build_magnet_link
 import urllib3
 
 # __MAIN__
@@ -41,6 +43,10 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 tpbAdaptor = TpbAdaptor(logger)
 
+# Constants
+# MAX_RESULTS_PER_QUERY = 50 (Telegram limit)
+BOT_USERNAME = os.environ.get('BOT_USERNAME', 'your_bot')
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/start create torrent file from btih or magnet link"""
@@ -52,7 +58,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elif output_path == '':
         reply = 'Failed to create file'
     else:
-        reply = f'File created successfully, {output_path}'
+        reply = f'✅ Torrent file created: {output_path}\n\nTap a button below to view:'
+        # Add view buttons to the reply
+        btih = context.args[0]
+        search_term = ' '.join(context.args[1:]) if len(context.args) > 1 else ''
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("📋 View Magnet", callback_data=f"magnet:{btih}"),
+            InlineKeyboardButton("🔑 View BTIH", callback_data=f"btih:{btih}"),
+            InlineKeyboardButton("🔍 View Search", callback_data=f"search:{btih}:{search_term}"),
+        ]])
+        await update.message.reply_text(reply, reply_markup=keyboard)
+        return
     await update.message.reply_text(reply)
 
 
@@ -61,53 +77,190 @@ async def helper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         '''Hi there!
 @living_room_bot search_phrase - inline search,
-/start - brih|magnet [<name>],
+/start - btih|magnet [<name>],
 /help - to view this message.''')
 
 
 async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """@bot inline search """
-    logger.info(f'Inline: {update.inline_query.query}')
+    """@bot inline search"""
+    query = update.inline_query.query
+    if not query:
+        return
+
+    logger.info(f'Inline: {query}')
+
     loop = asyncio.get_running_loop()
-    results = await loop.run_in_executor(
+    limit = int(os.environ.get('LIMIT', 30))
+    all_results = await loop.run_in_executor(
         None,
         tpbAdaptor.fetch_magnet_links,
-        update.inline_query.query,
-        int(os.environ.get('LIMIT'))
+        query,
+        limit
     )
-    articles = list()
-    for magnet in results:
+
+    articles = []
+    for magnet in all_results:
+        btih = magnet['id']
         articles.append(
             InlineQueryResultArticle(
-                id=magnet['id'],
-                title=magnet['title'],
+                id=btih,
+                title=magnet['title'][:64],
                 input_message_content=InputTextMessageContent(
                     magnet['command_msg']),
-                description=magnet['description'],
+                description=magnet['description'][:256],
             )
         )
-    await update.inline_query.answer(articles)
+
+    await update.inline_query.answer(
+        articles,
+        cache_time=300,
+    )
+
+
+async def callback_view_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'View Magnet' button callback"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if not data.startswith("magnet:"):
+        if query.message:
+            await query.message.reply_text("Invalid action")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid action"
+            )
+        return
+
+    btih = data.split(":", 1)[1]
+    logger.info(f'Callback view magnet: {btih}')
+
+    magnet_link = build_magnet_link(btih)
+
+    text = f"📋 Magnet link:\n\n`{magnet_link}`"
+
+    if query.message:
+        # Regular message - send new message
+        await query.message.reply_text(text, parse_mode='Markdown')
+    elif query.inline_message_id:
+        # Inline message - edit the inline message
+        await context.bot.edit_message_text(
+            inline_message_id=query.inline_message_id,
+            text=text,
+            parse_mode='Markdown'
+        )
+
+
+async def callback_view_btih(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'View BTIH' button callback"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if not data.startswith("btih:"):
+        if query.message:
+            await query.message.reply_text("Invalid action")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid action"
+            )
+        return
+
+    btih = data.split(":", 1)[1]
+    logger.info(f'Callback view btih: {btih}')
+
+    text = f"🔑 BTIH:\n\n`{btih}`"
+
+    if query.message:
+        # Regular message - send new message
+        await query.message.reply_text(text, parse_mode='Markdown')
+    elif query.inline_message_id:
+        # Inline message - edit the inline message
+        await context.bot.edit_message_text(
+            inline_message_id=query.inline_message_id,
+            text=text,
+            parse_mode='Markdown'
+        )
+
+
+async def callback_view_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'View Search' button callback"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if not data.startswith("search:"):
+        if query.message:
+            await query.message.reply_text("Invalid action")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid action"
+            )
+        return
+
+    # Format: search:<btih>:<search_term>
+    parts = data.split(":", 2)
+    if len(parts) < 3:
+        if query.message:
+            await query.message.reply_text("Invalid search data")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid search data"
+            )
+        return
+
+    search_term = parts[2].replace('_', ' ')
+    logger.info(f'Callback view search: {search_term}')
+
+    # Build the inline query command
+    inline_command = f"@{BOT_USERNAME} {search_term}"
+
+    text = f"🔍 Search command (tap to copy):\n\n`{inline_command}`"
+
+    if query.message:
+        await query.message.reply_text(text, parse_mode='Markdown')
+    elif query.inline_message_id:
+        await context.bot.edit_message_text(
+            inline_message_id=query.inline_message_id,
+            text=text,
+            parse_mode='Markdown'
+        )
 
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Echo the message back to the user"""
-    if ("myip" in update.message.text):
+    message = update.message or update.edited_message
+    if not message or not message.text:
+        return
+
+    if ("myip" in message.text):
         myport = os.environ.get('MYPORT')
         http = urllib3.PoolManager()
         myip = http.request('GET', 'https://ident.me').data.decode()
         output_msg = f'{myip}:{myport}'
-        logger.info(f'myip: {update.message.chat.username}, {output_msg}')
-        await update.message.reply_text(output_msg)
+        logger.info(f'myip: {message.chat.username}, {output_msg}')
+        await message.reply_text(output_msg)
     else:
-        logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
-        await update.message.reply_text(f'Echo: {update.message.text}')
+        logger.info(f'Echo: {message.chat.username}, {message.text}')
+        await message.reply_text(f'Echo: {message.text}')
 
 
+# Register handlers
 application.add_handler(InlineQueryHandler(inline_lookup))
 application.add_handler(CommandHandler('start', start, filters=approved_user_filter))
 application.add_handler(CommandHandler('help', helper))
 application.add_handler(MessageHandler(
     approved_user_filter & filters.TEXT & ~filters.COMMAND, echo))
+application.add_handler(CallbackQueryHandler(
+    callback_view_magnet, pattern=r'^magnet:'))
+application.add_handler(CallbackQueryHandler(
+    callback_view_btih, pattern=r'^btih:'))
+application.add_handler(CallbackQueryHandler(
+    callback_view_search, pattern=r'^search:'))
 
 
 # Start bot
