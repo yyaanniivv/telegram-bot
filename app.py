@@ -57,7 +57,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elif output_path == '':
         reply = 'Failed to create file'
     else:
-        reply = f'File created successfully, {output_path}'
+        reply = f'✅ Torrent file created: {output_path}\n\nTap a button below to copy:'
+        # Add copy buttons to the reply
+        btih = context.args[0]
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("📋 Copy Magnet", callback_data=f"magnet:{btih}"),
+            InlineKeyboardButton("🔑 Copy BTIH", callback_data=f"btih:{btih}"),
+        ]])
+        await update.message.reply_text(reply, reply_markup=keyboard)
+        return
     await update.message.reply_text(reply)
 
 
@@ -66,7 +74,7 @@ async def helper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         '''Hi there!
 @living_room_bot search_phrase - inline search,
-/start - brih|magnet [<name>],
+/start - btih|magnet [<name>],
 /help - to view this message.''')
 
 
@@ -80,7 +88,6 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     loop = asyncio.get_running_loop()
     # Fetch more results than PAGE_SIZE to support pagination
-    # We fetch LIMIT from env (default 30) or a larger amount for pagination
     fetch_limit = max(int(os.environ.get('LIMIT', 30)), PAGE_SIZE * 3)
     all_results = await loop.run_in_executor(
         None,
@@ -97,72 +104,32 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     articles = []
     for magnet in page_results:
         btih = magnet['id']
-        # Include search term in callback_data for proper naming
-        # Format: create:<btih>:<search_term> (max 64 bytes for callback_data)
-        search_term_safe = query.replace(' ', '_')[:30]
-        create_callback = f"create:{btih}:{search_term_safe}"
+        # Callback data: btih only (search term is in the /start message)
+        btih_callback = f"btih:{btih}"
         magnet_callback = f"magnet:{btih}"
 
-        # Create inline keyboard with action buttons
+        # Inline keyboard with copy buttons (Create is automatic via /start)
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton(
-                "📥 Create .torrent",
-                callback_data=create_callback
-            ),
-            InlineKeyboardButton(
-                "📋 Copy Magnet",
-                callback_data=magnet_callback
-            ),
+            InlineKeyboardButton("📋 Copy Magnet", callback_data=magnet_callback),
+            InlineKeyboardButton("🔑 Copy BTIH", callback_data=btih_callback),
         ]])
 
         articles.append(
             InlineQueryResultArticle(
                 id=btih,
-                title=magnet['title'][:64],  # Telegram limit
+                title=magnet['title'][:64],
                 input_message_content=InputTextMessageContent(
                     magnet['command_msg']),
-                description=magnet['description'][:256],  # Telegram limit
+                description=magnet['description'][:256],
                 reply_markup=keyboard,
             )
         )
 
     await update.inline_query.answer(
         articles,
-        auto_pagination=True,  # PTB handles next_offset automatically
+        auto_pagination=True,
         cache_time=300,
     )
-
-
-async def callback_create_torrent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle 'Create .torrent' button callback"""
-    query = update.callback_query
-    await query.answer()
-
-    # callback_data format: "create:<btih>:<search_term>"
-    data = query.data
-    if not data.startswith("create:"):
-        await query.edit_message_text("Invalid action")
-        return
-
-    parts = data.split(":", 2)
-    if len(parts) < 2:
-        await query.edit_message_text("Invalid callback data")
-        return
-
-    btih = parts[1]
-    search_term = parts[2].replace('_', ' ') if len(parts) > 2 else 'FromInline'
-    logger.info(f'Callback create torrent: {btih} (search: {search_term})')
-
-    # Create torrent file with search term as name
-    output_path = TorrentFile([btih, search_term], logger).create()
-    if output_path is None:
-        reply = 'Failed to create torrent file. Invalid BTIH.'
-    elif output_path == '':
-        reply = 'Failed to create file.'
-    else:
-        reply = f'✅ Torrent file created: {output_path}'
-
-    await query.edit_message_text(reply)
 
 
 async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -170,7 +137,6 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
 
-    # callback_data format: "magnet:<btih>"
     data = query.data
     if not data.startswith("magnet:"):
         await query.edit_message_text("Invalid action")
@@ -179,7 +145,6 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
     btih = data.split(":", 1)[1]
     logger.info(f'Callback copy magnet: {btih}')
 
-    # Build magnet link from env vars
     magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
     magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
     magnet_link = f"{magnet_prefix}{btih}{magnet_suffix}"
@@ -190,9 +155,27 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
+async def callback_copy_btih(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'Copy BTIH' button callback - show BTIH"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if not data.startswith("btih:"):
+        await query.edit_message_text("Invalid action")
+        return
+
+    btih = data.split(":", 1)[1]
+    logger.info(f'Callback copy btih: {btih}')
+
+    await query.edit_message_text(
+        f"🔑 BTIH (tap to copy):\n\n`{btih}`",
+        parse_mode='Markdown'
+    )
+
+
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Echo the message back to the user"""
-    # Handle both regular messages and edited messages
     message = update.message or update.edited_message
     if not message or not message.text:
         return
@@ -216,9 +199,9 @@ application.add_handler(CommandHandler('help', helper))
 application.add_handler(MessageHandler(
     approved_user_filter & filters.TEXT & ~filters.COMMAND, echo))
 application.add_handler(CallbackQueryHandler(
-    callback_create_torrent, pattern=r'^create:'))
-application.add_handler(CallbackQueryHandler(
     callback_copy_magnet, pattern=r'^magnet:'))
+application.add_handler(CallbackQueryHandler(
+    callback_copy_btih, pattern=r'^btih:'))
 
 
 # Start bot
