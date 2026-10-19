@@ -114,8 +114,8 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
-async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle 'Copy Magnet' button callback"""
+async def callback_view_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'View Magnet' button callback"""
     query = update.callback_query
     await query.answer()
 
@@ -131,7 +131,7 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     btih = data.split(":", 1)[1]
-    logger.info(f'Callback copy magnet: {btih}')
+    logger.info(f'Callback view magnet: {btih}')
 
     magnet_prefix = os.environ.get('MAGNET_PREFIX', 'magnet:?xt=urn:btih:')
     magnet_suffix = os.environ.get('MAGNET_SUFFIX', '')
@@ -151,8 +151,8 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
-async def callback_copy_btih(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle 'Copy BTIH' button callback"""
+async def callback_view_btih(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'View BTIH' button callback"""
     query = update.callback_query
     await query.answer()
 
@@ -168,7 +168,7 @@ async def callback_copy_btih(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     btih = data.split(":", 1)[1]
-    logger.info(f'Callback copy btih: {btih}')
+    logger.info(f'Callback view btih: {btih}')
 
     text = f"🔑 BTIH:\n\n`{btih}`"
 
@@ -209,9 +209,9 @@ application.add_handler(CommandHandler('help', helper))
 application.add_handler(MessageHandler(
     approved_user_filter & filters.TEXT & ~filters.COMMAND, echo))
 application.add_handler(CallbackQueryHandler(
-    callback_copy_magnet, pattern=r'^magnet:'))
+    callback_view_magnet, pattern=r'^magnet:'))
 application.add_handler(CallbackQueryHandler(
-    callback_copy_btih, pattern=r'^btih:'))
+    callback_view_btih, pattern=r'^btih:'))
 
 
 # Start bot
