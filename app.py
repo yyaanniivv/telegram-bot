@@ -44,7 +44,7 @@ logger.addHandler(handler)
 tpbAdaptor = TpbAdaptor(logger)
 
 # Constants
-PAGE_SIZE = 20
+# MAX_RESULTS_PER_QUERY = 50 (Telegram limit)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -79,7 +79,7 @@ async def helper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """@bot inline search with pagination"""
+    """@bot inline search"""
     query = update.inline_query.query
     if not query:
         return
@@ -87,24 +87,17 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     logger.info(f'Inline: {query}')
 
     loop = asyncio.get_running_loop()
-    # Fetch more results than PAGE_SIZE to support pagination
-    fetch_limit = max(int(os.environ.get('LIMIT', 30)), PAGE_SIZE * 3)
+    limit = int(os.environ.get('LIMIT', 30))
     all_results = await loop.run_in_executor(
         None,
         tpbAdaptor.fetch_magnet_links,
         query,
-        fetch_limit
+        limit
     )
 
-    # Parse offset for pagination
-    offset = update.inline_query.offset
-    start = int(offset) if offset and offset.isdigit() else 0
-    end = start + PAGE_SIZE
-    page_results = all_results[start:end]
     articles = []
-    for magnet in page_results:
+    for magnet in all_results:
         btih = magnet['id']
-        # No inline keyboard in results - buttons will be added by start handler
         articles.append(
             InlineQueryResultArticle(
                 id=btih,
@@ -117,7 +110,6 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await update.inline_query.answer(
         articles,
-        auto_pagination=True,
         cache_time=300,
     )
 
