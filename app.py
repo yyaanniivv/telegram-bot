@@ -45,6 +45,7 @@ tpbAdaptor = TpbAdaptor(logger)
 
 # Constants
 # MAX_RESULTS_PER_QUERY = 50 (Telegram limit)
+BOT_USERNAME = os.environ.get('BOT_USERNAME', 'your_bot')
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -60,9 +61,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply = f'✅ Torrent file created: {output_path}\n\nTap a button below to view:'
         # Add view buttons to the reply
         btih = context.args[0]
+        search_term = ' '.join(context.args[1:]) if len(context.args) > 1 else ''
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("📋 View Magnet", callback_data=f"magnet:{btih}"),
             InlineKeyboardButton("🔑 View BTIH", callback_data=f"btih:{btih}"),
+            InlineKeyboardButton("🔍 View Search", callback_data=f"search:{btih}:{search_term}"),
         ]])
         await update.message.reply_text(reply, reply_markup=keyboard)
         return
@@ -184,6 +187,52 @@ async def callback_view_btih(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
+async def callback_view_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle 'View Search' button callback"""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if not data.startswith("search:"):
+        if query.message:
+            await query.message.reply_text("Invalid action")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid action"
+            )
+        return
+
+    # Format: search:<btih>:<search_term>
+    parts = data.split(":", 2)
+    if len(parts) < 3:
+        if query.message:
+            await query.message.reply_text("Invalid search data")
+        elif query.inline_message_id:
+            await context.bot.edit_message_text(
+                inline_message_id=query.inline_message_id,
+                text="Invalid search data"
+            )
+        return
+
+    search_term = parts[2].replace('_', ' ')
+    logger.info(f'Callback view search: {search_term}')
+
+    # Build the inline query command
+    inline_command = f"@{BOT_USERNAME} {search_term}"
+
+    text = f"🔍 Search command (tap to copy):\n\n`{inline_command}`"
+
+    if query.message:
+        await query.message.reply_text(text, parse_mode='Markdown')
+    elif query.inline_message_id:
+        await context.bot.edit_message_text(
+            inline_message_id=query.inline_message_id,
+            text=text,
+            parse_mode='Markdown'
+        )
+
+
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Echo the message back to the user"""
     message = update.message or update.edited_message
@@ -212,6 +261,8 @@ application.add_handler(CallbackQueryHandler(
     callback_view_magnet, pattern=r'^magnet:'))
 application.add_handler(CallbackQueryHandler(
     callback_view_btih, pattern=r'^btih:'))
+application.add_handler(CallbackQueryHandler(
+    callback_view_search, pattern=r'^search:'))
 
 
 # Start bot
