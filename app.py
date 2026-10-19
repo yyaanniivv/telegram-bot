@@ -180,16 +180,21 @@ async def callback_copy_magnet(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Echo the message back to the user"""
-    if ("myip" in update.message.text):
+    # Handle both regular messages and edited messages
+    message = update.message or update.edited_message
+    if not message or not message.text:
+        return
+
+    if ("myip" in message.text):
         myport = os.environ.get('MYPORT')
         http = urllib3.PoolManager()
         myip = http.request('GET', 'https://ident.me').data.decode()
         output_msg = f'{myip}:{myport}'
-        logger.info(f'myip: {update.message.chat.username}, {output_msg}')
-        await update.message.reply_text(output_msg)
+        logger.info(f'myip: {message.chat.username}, {output_msg}')
+        await message.reply_text(output_msg)
     else:
-        logger.info(f'Echo: {update.message.chat.username}, {update.message.text}')
-        await update.message.reply_text(f'Echo: {update.message.text}')
+        logger.info(f'Echo: {message.chat.username}, {message.text}')
+        await message.reply_text(f'Echo: {message.text}')
 
 
 # Register handlers
