@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from os.path import dirname, join, os
+import os
+from os.path import dirname, join
 
 from dotenv import load_dotenv
 from telegram import (InlineQueryResultArticle, InputTextMessageContent,
@@ -11,6 +12,7 @@ from telegram.ext import (Application, CallbackQueryHandler,
 
 from torrent_file import TorrentFile
 from tpb_adaptor import TpbAdaptor, build_magnet_link
+from db_service import get_db_service
 import urllib3
 
 # __MAIN__
@@ -47,6 +49,15 @@ tpbAdaptor = TpbAdaptor(logger)
 # MAX_RESULTS_PER_QUERY = 50 (Telegram limit)
 BOT_USERNAME = os.environ.get('BOT_USERNAME', 'your_bot')
 
+# Database service
+db_service = None
+
+
+async def initialize_database():
+    """Initialize the database service."""
+    global db_service
+    db_service = await get_db_service()
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/start create torrent file from btih or magnet link"""
@@ -68,6 +79,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             InlineKeyboardButton("🔍 View Search", callback_data=f"search:{btih}:{search_term}"),
         ]])
         await update.message.reply_text(reply, reply_markup=keyboard)
+
+        # Record in database
+        user_id = update.effective_user.id
+        if db_service:
+            try:
+                # Extract BTIH from magnet if needed
+                from torrent_file import validate_input, extract_btih
+                is_valid, input_type = validate_input(btih)
+                actual_btih = btih
+                if input_type == 'magnet':
+                    actual_btih = extract_btih(btih)
+
+                magnet_link = build_magnet_link(actual_btih)
+                output_dir = os.environ.get('OUTPUT_DIR', './output')
+                file_path = os.path.join(output_dir, output_path)
+                file_size = os.path.getsize(file_path) if os.path.exists(file_path) else None
+
+                await db_service.record_created_torrent(
+                    user_id=user_id,
+                    btih=actual_btih,
+                    magnet_link=magnet_link,
+                    search_term=search_term,
+                    filename=output_path,
+                    file_path=file_path,
+                    file_size_bytes=file_size,
+                )
+                await db_service.record_event("torrent_created", user_id, {"btih": actual_btih})
+            except Exception as e:
+                logger.error(f"Failed to record torrent creation: {e}")
         return
     await update.message.reply_text(reply)
 
@@ -87,7 +127,8 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not query:
         return
 
-    logger.info(f'Inline: {query}')
+    user_id = update.inline_query.from_user.id
+    logger.info(f'Inline: {query} from user {user_id}')
 
     loop = asyncio.get_running_loop()
     limit = int(os.environ.get('LIMIT', 30))
@@ -115,6 +156,14 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         articles,
         cache_time=300,
     )
+
+    # Record search in database
+    if db_service:
+        try:
+            await db_service.record_search(user_id, query, len(all_results))
+            await db_service.record_event("inline_search", user_id, {"query": query, "results": len(all_results)})
+        except Exception as e:
+            logger.error(f"Failed to record search: {e}")
 
 
 async def callback_view_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -262,6 +311,14 @@ application.add_handler(CallbackQueryHandler(
 application.add_handler(CallbackQueryHandler(
     callback_view_search, pattern=r'^search:'))
 
+
+# Initialize database on startup
+async def post_init(application: Application):
+    """Initialize database after application starts."""
+    await initialize_database()
+
+
+application.post_init = post_init
 
 # Start bot
 print("Bot up and listening!")
