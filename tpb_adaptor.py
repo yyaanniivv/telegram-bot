@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import datetime
 from os.path import dirname, join, os
 
 import urllib3
@@ -20,26 +21,29 @@ def build_magnet_link(btih: str) -> str:
 
 
 def get_magnet_details(entry: object, search_phrase: str):
-    date = time.strftime('%Y-%m-%d', time.localtime(int(entry['added'])))
-    size = str(round(int(entry["size"]) / 1024**2, 2)) + 'MiB'  # Size in MiB
-    description_object = {
-        'uploaded': date,
-        'size': size,
-        'seeders ^': entry['seeders'],
-        'leechers v': entry['leechers'],
-    }
-
+    """Convert raw TPB API entry to magnet object with full metadata."""
     magnet_link = build_magnet_link(entry['info_hash'])
 
-    magnet_object = {  # btih_article
+    # Keep raw size in bytes for exact storage
+    size_bytes = int(entry["size"])
+    # Human-readable size
+    size_human = str(round(size_bytes / 1024**2, 2)) + ' MiB'
+
+    # Parse upload date
+    uploaded_date = datetime.fromtimestamp(int(entry['added'])).date()
+
+    magnet_object = {
         'id': entry['info_hash'],
         'title': entry['name'],
         'magnet_link': magnet_link,
         'command_msg': f"/start {entry['info_hash']} {search_phrase}",
-        'description': ' | '.join(
-            '{}:{}'.format(key.capitalize(), val)
-            for key, val in description_object.items()
-        ),
+        'description': f"Uploaded:{uploaded_date} | Size:{size_human} | Seeders: {entry['seeders']} | Leechers: {entry['leechers']}",
+        # Full metadata for persistence
+        'size_bytes': size_bytes,
+        'size_human': size_human,
+        'seeders': int(entry['seeders']),
+        'leechers': int(entry['leechers']),
+        'uploaded_date': uploaded_date.isoformat(),  # ISO format string for JSON serialization
     }
     return magnet_object
 
