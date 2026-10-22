@@ -1,10 +1,11 @@
 """Database models and session management for Magnet2Torrent Bot."""
 import os
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -69,6 +70,7 @@ class SearchHistory(Base):
 
     # Relationships
     user: Mapped["ApprovedUser"] = relationship(back_populates="searches")
+    results: Mapped[list["SearchResult"]] = relationship(back_populates="search_history", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -77,6 +79,35 @@ class SearchHistory(Base):
 
     def __repr__(self) -> str:
         return f"<SearchHistory(id={self.id}, user_id={self.user_id}, query={self.query[:30]})>"
+
+
+class SearchResult(Base):
+    """Individual search results stored for later torrent creation."""
+    __tablename__ = "search_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    search_history_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("search_history.id"), nullable=False, index=True
+    )
+    btih: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    magnet_link: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    size_human: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    seeders: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    leechers: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    uploaded_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationship
+    search_history: Mapped["SearchHistory"] = relationship(back_populates="results")
+
+    __table_args__ = (
+        UniqueConstraint("search_history_id", "btih", name="uq_search_result"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<SearchResult(id={self.id}, btih={self.btih[:8]}..., title={self.title[:30]})>"
 
 
 class CreatedTorrent(Base):
@@ -93,6 +124,12 @@ class CreatedTorrent(Base):
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Metadata from search result
+    title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    seeders: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    leechers: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    uploaded_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Relationships

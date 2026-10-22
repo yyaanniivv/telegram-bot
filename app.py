@@ -96,6 +96,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 file_path = os.path.join(output_dir, output_path)
                 file_size = os.path.getsize(file_path) if os.path.exists(file_path) else None
 
+                # Try to find search result metadata for this BTIH + search_term
+                search_result = None
+                if search_term and search_term != 'NoSearch':
+                    search_result = await db_service.get_search_result_by_btih_and_user(
+                        user_id=user_id,
+                        btih=actual_btih,
+                        search_term=search_term,
+                    )
+
+                # Use search result metadata if found, otherwise fall back to file info
+                title = search_result.title if search_result else None
+                size_bytes = search_result.size_bytes if search_result else file_size
+                seeders = search_result.seeders if search_result else None
+                leechers = search_result.leechers if search_result else None
+                uploaded_date = search_result.uploaded_date if search_result else None
+
                 await db_service.record_created_torrent(
                     user_id=user_id,
                     btih=actual_btih,
@@ -104,6 +120,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     filename=output_path,
                     file_path=file_path,
                     file_size_bytes=file_size,
+                    title=title,
+                    size_bytes=size_bytes,
+                    seeders=seeders,
+                    leechers=leechers,
+                    uploaded_date=uploaded_date,
                 )
                 await db_service.record_event("torrent_created", user_id, {"btih": actual_btih})
             except Exception as e:
@@ -157,10 +178,32 @@ async def inline_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         cache_time=300,
     )
 
-    # Record search in database
+    # Record search AND full results in database
     if db_service:
         try:
-            await db_service.record_search(user_id, query, len(all_results))
+            search = await db_service.record_search(user_id, query, len(all_results))
+            # Store individual results with full metadata
+            for magnet in all_results:
+                # Parse uploaded_date from ISO string
+                from datetime import date
+                uploaded_date = None
+                if magnet.get('uploaded_date'):
+                    try:
+                        uploaded_date = date.fromisoformat(magnet['uploaded_date'])
+                    except ValueError:
+                        pass
+
+                await db_service.record_search_result(
+                    search_id=search.id,
+                    btih=magnet['id'],
+                    title=magnet['title'],
+                    magnet_link=magnet['magnet_link'],
+                    size_bytes=magnet.get('size_bytes'),
+                    size_human=magnet.get('size_human'),
+                    seeders=magnet.get('seeders'),
+                    leechers=magnet.get('leechers'),
+                    uploaded_date=uploaded_date,
+                )
             await db_service.record_event("inline_search", user_id, {"query": query, "results": len(all_results)})
         except Exception as e:
             logger.error(f"Failed to record search: {e}")

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import (
     ApprovedUser,
     SearchHistory,
+    SearchResult,
     CreatedTorrent,
     AnalyticsEvent,
     get_db_session,
@@ -135,6 +136,66 @@ class DatabaseService:
             result = await session.execute(stmt)
             return [{"query": row[0], "count": row[1]} for row in result.all()]
 
+    async def record_search_result(
+        self,
+        search_id: int,
+        btih: str,
+        title: str,
+        magnet_link: str,
+        size_bytes: Optional[int] = None,
+        size_human: Optional[str] = None,
+        seeders: Optional[int] = None,
+        leechers: Optional[int] = None,
+        uploaded_date: Optional[datetime] = None,
+    ) -> SearchResult:
+        """Store individual search result with full metadata."""
+        session = await get_db_session()
+        async with session:
+            result = SearchResult(
+                search_history_id=search_id,
+                btih=btih,
+                title=title,
+                magnet_link=magnet_link,
+                size_bytes=size_bytes,
+                size_human=size_human,
+                seeders=seeders,
+                leechers=leechers,
+                uploaded_date=uploaded_date,
+            )
+            session.add(result)
+            await session.commit()
+            await session.refresh(result)
+            return result
+
+    async def get_search_result_by_btih_and_user(
+        self, user_id: int, btih: str, search_term: str
+    ) -> Optional[SearchResult]:
+        """Find search result by user, BTIH, and search term (fuzzy match on search term)."""
+        session = await get_db_session()
+        async with session:
+            # Find user's recent search for this term (case-insensitive partial match)
+            stmt = (
+                select(SearchHistory)
+                .where(
+                    SearchHistory.user_id == user_id,
+                    SearchHistory.query.ilike(f"%{search_term}%")
+                )
+                .order_by(desc(SearchHistory.created_at))
+                .limit(1)
+            )
+            result = await session.execute(stmt)
+            search = result.scalar_one_or_none()
+
+            if search:
+                # Find the specific result in that search
+                stmt = select(SearchResult).where(
+                    SearchResult.search_history_id == search.id,
+                    SearchResult.btih == btih
+                )
+                result = await session.execute(stmt)
+                return result.scalar_one_or_none()
+            return None
+
     # --- Created Torrents ---
 
     async def record_created_torrent(
@@ -146,8 +207,14 @@ class DatabaseService:
         filename: str,
         file_path: str,
         file_size_bytes: Optional[int] = None,
+        # Metadata from search result (optional)
+        title: Optional[str] = None,
+        size_bytes: Optional[int] = None,
+        seeders: Optional[int] = None,
+        leechers: Optional[int] = None,
+        uploaded_date: Optional[datetime] = None,
     ) -> CreatedTorrent:
-        """Record a created torrent file."""
+        """Record a created torrent file with optional metadata from search result."""
         session = await get_db_session()
         async with session:
             torrent = CreatedTorrent(
@@ -158,6 +225,11 @@ class DatabaseService:
                 filename=filename,
                 file_path=file_path,
                 file_size_bytes=file_size_bytes,
+                title=title,
+                size_bytes=size_bytes,
+                seeders=seeders,
+                leechers=leechers,
+                uploaded_date=uploaded_date,
             )
             session.add(torrent)
             await session.commit()
