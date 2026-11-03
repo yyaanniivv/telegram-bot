@@ -10,7 +10,7 @@ lazy-object-proxy==1.4.3
 mccabe==0.6.1
 pycodestyle==2.6.0
 pycparser==2.20
-pylint==2.6.0
+pylint==4.0.9
 python-dotenv==1.2.2
 python-telegram-bot==22.8
 pytz==2020.4
