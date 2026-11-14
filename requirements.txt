@@ -16,7 +16,7 @@ python-telegram-bot==22.8
 pytz==2020.4
 six==1.15.0
 toml==0.10.2
-tornado==6.5.10
+tornado==6.6.1
 tzlocal==5.3.1
 urllib3==2.8.0
 wrapt==1.12.1
